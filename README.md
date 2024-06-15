@@ -2,21 +2,19 @@
 
 CURRENTLY AN EXPERIMENTAL PROOF OF CONCEPT
 
-
 libnjkafka is a "native Java" C compatible client library for Apache Kafka.
 
-Using the magic of GraalVM, the office Java client code is compiled to native code which means:
+It provides a native, C compatible API on top of the official Apache Kafka client library.
 
-* C Compatible
-* No JVM or GraalVM required
-* No significant startup penalty
+It does not run on the JVM.
 
+It starts up _fast_.
+
+You can use it in your C programs, C extensions or via FFI.
 
 ## C API
 
-The libnjkafka shared object will work with your existing C code.
-
-The public C API wrapper provides convenient functions:
+The public C API provides convenient functions:
 
 ```c
 libnjkafka_create_consumer
