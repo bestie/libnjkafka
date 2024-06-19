@@ -1,0 +1,24 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      env:
+        GRAALVM_HOME: "boop boop boop"
+      run: make docker-build
+    - name: Bring up docker-compose stack
+      run: docker-compose up -d
+    - name: Create the topic
+      run: docker run --network=host --rm make topic
