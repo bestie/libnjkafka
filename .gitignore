@@ -1,0 +1,7 @@
+build/*
+lib/*
+bin/*
+cbin/*
+compile_flags.txt
+
+demos/ruby/build/*
