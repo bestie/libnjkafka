@@ -1,0 +1,47 @@
+name: Build and test
+
+on:
+  push:
+    branches: '*'
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Bring up docker-compose stack
+      run: docker compose up --detach
+
+    - name: Build the Docker image
+      run: docker build --tag ${{ env.DOCKER_TAG }} .
+
+    - name: Ensure the broker is up
+      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
+
+    - name: Create the topic
+      run: docker run --network=host --rm ${{ env.DOCKER_TAG }} make topic
+
+    - name: Build the library
+      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: build/
+
+    - name: Run the demo/test program
+      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make c_demo
+
+    - name: Build the Ruby test demo
+      run: docker build --tag ${{ env.DOCKER_TAG }}-ruby --file Dockerfile.ruby .
+
+    - name: Run the Ruby test demo
+      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }}-ruby make ruby_demo
