@@ -1,4 +1,4 @@
-FROM ubuntu:mantic-20240216
+FROM ubuntu:plucky-20241213
 
 # I would prefer not to
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,16 +17,38 @@ RUN apt-get update && \
 
 WORKDIR /home
 
-RUN wget -q https://download.oracle.com/graalvm/22/latest/graalvm-jdk-22_linux-x64_bin.tar.gz && \
-    tar -xzf graalvm-jdk-22_linux-x64_bin.tar.gz
+ARG ARCHITECTURE=aarch64
 
-RUN wget https://downloads.apache.org/kafka/3.7.0/kafka_2.13-3.7.0.tgz && \
-    tar -xzf kafka_2.13-3.7.0.tgz
+# Download GraalVM
+ARG JDK_VERSION=23
+ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${ARCHITECTURE}_bin.tar.gz
+# See https://www.oracle.com/java/technologies/jdk-script-friendly-urls/
+RUN wget https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
 
-ENV GRAALVM_HOME=/home/graalvm-jdk-22.0.1+8.1
+# Download Kafka client
+ARG KAFKA_ARCHIVE=kafka_2.13-3.9.0.tgz
+RUN wget https://downloads.apache.org/kafka/3.9.0/${KAFKA_ARCHIVE}
+
+ENV JDK_VERSION=$JDK_VERSION
+ARG GRAALVM_HOME=/home/graalvm
+ENV GRAALVM_HOME=$GRAALVM_HOME
+ARG GRAALVM_SHA256=1835a98b87c439c8c654d97956c22d409855952e5560a8127f56c50f3f919d7d
+
+RUN echo "$GRAALVM_SHA256 *${GRAALVM_ARCHIVE}" | sha256sum --strict --check
+RUN tar -xzf ${GRAALVM_ARCHIVE}
+RUN rm ${GRAALVM_ARCHIVE}
+RUN bash -c "ln -s /home/graalvm-jdk-${JDK_VERSION}.* $GRAALVM_HOME"
+
+ARG KAFKA_HOME=/home/kafka
+ENV KAFKA_HOME=${KAFKA_HOME}
+ARG KAFKA_SHA256=abc44402ddf103e38f19b0e4b44e65da9a831ba9e58fd7725041b1aa168ee8d1
+
+RUN echo "$KAFKA_SHA256 *${KAFKA_ARCHIVE}" | sha256sum --strict --check
+RUN tar -xzf ${KAFKA_ARCHIVE}
+RUN rm ${KAFKA_ARCHIVE}
+RUN bash -c "ln -s /home/kafka* $KAFKA_HOME"
+
 ENV PATH=$GRAALVM_HOME/bin:$PATH
-
-ENV KAFKA_HOME=/home/kafka_2.13-3.7.0
 ENV PATH=$KAFKA_HOME/bin:$PATH
 
 RUN mkdir /libnjkafka
