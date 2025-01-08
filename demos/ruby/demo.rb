@@ -3,7 +3,7 @@ require 'benchmark'
 benchmarks = {}
 
 benchmarks["Load C extension"] = Benchmark.realtime do
-  require_relative File.join(ENV.fetch("C_EXT_PATH"), "libnjkafka_ext")
+  require File.join(ENV.fetch("C_EXT_PATH"), "libnjkafka_ext")
 end
 
 expected_record_count = 120

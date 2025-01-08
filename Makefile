@@ -144,16 +144,24 @@ ruby_clean:
 	rm -f $(DEMO_DIR)/ruby/libnjkafka_ext.o
 	rm -f $(DEMO_DIR)/ruby/mkmf.log
 
+RUBY_C_EXT_OBJECT = $(DEMO_DIR)/ruby/build/libnjkafka.o
+
 .PHONY: ruby_demo
-ruby_demo: $(DEMO_DIR)/ruby/build/libnjkafka.o
+ruby_demo: $(RUBY_C_EXT_OBJECT)
 	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby --disable=gems demo.rb
 
 .PHONY: ruby_c_ext
-ruby_c_ext: $(DEMO_DIR)/ruby/build/libnjkafka.o
+ruby_c_ext: $(RUBY_C_EXT_OBJECT)
 
-$(DEMO_DIR)/ruby/build/libnjkafka.o: $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
+$(RUBY_C_EXT_OBJECT): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && make
+	install_name_tool -change $(SHARED_LIBRARY_OBJECT) @rpath/libnjkafka.dylib $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
+	install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
+	otool -L $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
+
+.PHONY: ruby_make_file
+ruby_make_file: $(DEMO_DIR)/ruby/build/Makefile
 
 $(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
 	mkdir -p $(DEMO_DIR)/ruby/build
