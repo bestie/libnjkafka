@@ -139,10 +139,6 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 .PHONY: ruby_clean
 ruby_clean:
 	rm -f $(DEMO_DIR)/ruby/build/*
-	rm -f $(DEMO_DIR)/ruby/Makefile
-	rm -f $(DEMO_DIR)/ruby/libnjkafka_ext.bundle
-	rm -f $(DEMO_DIR)/ruby/libnjkafka_ext.o
-	rm -f $(DEMO_DIR)/ruby/mkmf.log
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
 
