@@ -45,7 +45,7 @@ int main() {
     libnjkafka_ConsumerConfig* config = (libnjkafka_ConsumerConfig*)malloc(sizeof(libnjkafka_ConsumerConfig));
     config->auto_commit_interval_ms = 5000;
     config->auto_offset_reset = strdup("earliest");
-    config->bootstrap_servers = strdup("localhost:9092");
+    config->bootstrap_servers = strdup(kafka_brokers);
     config->check_crcs = 1;
     config->client_id = strdup("my-client");
     config->enable_auto_commit = 1;
@@ -105,7 +105,8 @@ int main() {
     char* group_id2 = (char*)malloc(30);
     snprintf(group_id2, 30, "test-group-%d", rand());
 
-    libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer(group_id2);
+    config->group_id = strdup(group_id2);
+    libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer_with_config(config);
     libnjkafka_consumer_subscribe(consumer2, strdup(kafka_topic));
 
     void* opaque = NULL;

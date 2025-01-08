@@ -106,7 +106,7 @@ DOCKER_PROJECT_HOME = /libnjkafka
 .PHONY: docker-build
 docker-build: build/.docker_build
 
-build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/*
+build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
 	mkdir -p $(BUILD_BASE_DIR)
 	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
@@ -119,6 +119,16 @@ docker-make: docker-build
 		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
 		$(DOCKER_TAG) \
 		make
+
+.PHONY: docker-demos
+docker-demos: docker-build
+	docker run \
+		--rm \
+		--network=host \
+		-e KAFKA_BROKERS=host.docker.internal:9092 \
+		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
+		$(DOCKER_TAG) \
+		make c_demo
 
 .PHONY: docker-bash
 docker-bash: docker-build
