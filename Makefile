@@ -88,7 +88,7 @@ $(GRAALVM_NATIVE_OBJECT): $(JNI_CONFIG) $(STRUCT_DEFINITIONS)
 .PHONY: jni-config
 jni-config: $(JNI_CONFIG)
 
-$(JNI_CONFIG): $(JAVA_ENTRYPOINTS)
+$(JNI_CONFIG): $(JAVA_ENTRYPOINTS) topic
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) timeout 10 java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) src.main.java.com.zendesk.libnjkafka.JavaDemo
 
