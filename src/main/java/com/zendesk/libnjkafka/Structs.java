@@ -1,4 +1,4 @@
-package src.main.java.com.zendesk.libnjkafka;
+package com.zendesk.libnjkafka;
 
 import java.util.Collections;
 import java.util.List;

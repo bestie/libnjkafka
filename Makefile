@@ -36,13 +36,12 @@ C_SRCS = $(wildcard $(C_SRC)/*.c)
 C_FLAGS = -Wall -Werror -fPIC -g
 
 # JAVA source
-JAVA_PROJECT_STRUCTURE = main/java/com/zendesk/libnjkafka
-JAVA_SRC = src/$(JAVA_PROJECT_STRUCTURE)
+JAVA_SRC = src/main/java/com/zendesk/libnjkafka
 JAVA_BIN = bin
 CLASSPATH = "$(KAFKA_HOME)/libs/*:src/main/resources:$(JAVA_BIN)"
 GRAALVM_AGENT_CONFIG_DIR = $(BUILD_BASE_DIR)/graalvm_agent_build_configs
-JNI_CONFIG = $(GRAALVM_AGENT_CONFIG_DIR)/jni-config.json
-JAVA_ENTRYPOINTS = $(JAVA_BIN)/$(JAVA_SRC)/Entrypoints.class
+JNI_CONFIG = $(GRAALVM_AGENT_CONFIG_DIR)/reachability-metadata.json
+JAVA_ENTRYPOINTS = $(JAVA_BIN)/com/zendesk/libnjkafka/Entrypoints.class
 
 # C source
 C_API_SRC = $(C_SRC)/libnjkafka_c_api.c
@@ -88,9 +87,9 @@ $(GRAALVM_NATIVE_OBJECT): $(JNI_CONFIG) $(STRUCT_DEFINITIONS)
 .PHONY: jni-config
 jni-config: $(JNI_CONFIG)
 
-$(JNI_CONFIG): $(JAVA_ENTRYPOINTS) topic
+$(JNI_CONFIG): $(JAVA_ENTRYPOINTS) $(BUILD_BASE_DIR)/.topic
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
-	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) timeout 10 java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) src.main.java.com.zendesk.libnjkafka.JavaDemo
+	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) timeout 10 java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
 
 .PHONY: java
 java: $(JAVA_ENTRYPOINTS)
@@ -161,7 +160,7 @@ ruby_c_ext: $(RUBY_C_EXT_BUNDLE)
 
 $(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && make
+	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
 	if [ "$(OS)" = "Darwin" ]; then \
 		install_name_tool -change $(SHARED_LIBRARY_OBJECT) @rpath/libnjkafka.dylib $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle; \
 		install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle; \
@@ -174,7 +173,7 @@ $(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
 	mkdir -p $(DEMO_DIR)/ruby/build
 	cp $(DEMO_DIR)/ruby/extconf.rb $(DEMO_DIR)/ruby/build
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && LIB_DIR=$(PROJECT_HOME)/$(BUILD_DIR) ruby extconf.rb
+	cd $(DEMO_DIR)/ruby/build && LIB_DIR=$(PROJECT_HOME)/$(BUILD_DIR) LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby extconf.rb
 
 ## C Demo #####################################################################
 
@@ -183,10 +182,10 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 
 .PHONY: c_demo
 c_demo: $(C_EXECUTABLE)
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR):$LD_LIBRARY_PATH KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
+	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
 
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR):$LD_LIBRARY_PATH $(CC) $(C_FLAGS) -I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) -Wl,-rpath ./ -o $(C_EXECUTABLE)
+	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) -Wl,-rpath ./ -o $(C_EXECUTABLE)
 
 ## Misc #######################################################################
 

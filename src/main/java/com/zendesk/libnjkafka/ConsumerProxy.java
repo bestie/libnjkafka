@@ -1,4 +1,4 @@
-package src.main.java.com.zendesk.libnjkafka;
+package com.zendesk.libnjkafka;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;

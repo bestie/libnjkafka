@@ -1,4 +1,4 @@
-package src.main.java.com.zendesk.libnjkafka;
+package com.zendesk.libnjkafka;
 
 import java.time.Duration;
 import java.util.Properties;

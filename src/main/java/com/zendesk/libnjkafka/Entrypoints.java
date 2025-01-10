@@ -1,4 +1,4 @@
-package src.main.java.com.zendesk.libnjkafka;
+package com.zendesk.libnjkafka;
 
 import java.time.Duration;
 import java.util.Properties;
@@ -16,11 +16,9 @@ import org.graalvm.nativeimage.c.type.CTypeConversion;
 import org.graalvm.word.Pointer;
 import org.graalvm.word.UnsignedWord;
 
-import src.main.java.com.zendesk.libnjkafka.ConsumerProxy;
-import src.main.java.com.zendesk.libnjkafka.ConsumerRegistry;
-import src.main.java.com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
-import src.main.java.com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
-import src.main.java.com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
+import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
+import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
+import com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
 
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
