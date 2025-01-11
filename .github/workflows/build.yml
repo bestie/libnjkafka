@@ -25,9 +25,6 @@ jobs:
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
-    - name: Create the topic
-      run: docker run --network=host --rm ${{ env.DOCKER_TAG }} make topic
-
     - name: Build the library
       run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make
 
