@@ -191,6 +191,9 @@ $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
 
 compile_flags.txt: Makefile
 	echo $(C_FLAGS) | tr ' ' '\n' > compile_flags.txt
+	echo -Iinclude >> compile_flags.txt
+	echo -I$(BUILD_DIR) >> compile_flags.txt
+	echo -L$(BUILD_DIR) >> compile_flags.txt
 
 .PHONY: clean
 clean:
