@@ -51,7 +51,7 @@ jobs:
       run: docker images
 
     - name: Build the library
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
@@ -60,10 +60,10 @@ jobs:
         path: build/
 
     - name: Run the demo/test program
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make c_demo
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make c_demo
 
     - name: Build the Ruby test demo
       run: docker build --tag ${{ env.DOCKER_TAG }}-ruby --file Dockerfile.ruby .
 
     - name: Run the Ruby test demo
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }}-ruby make ruby_demo
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }}-ruby make ruby_demo
