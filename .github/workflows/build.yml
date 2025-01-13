@@ -41,6 +41,7 @@ jobs:
           --cache-from=type=local,src=/tmp/.buildx-cache \
           --cache-to=type=local,dest=/tmp/.buildx-cache \
           --tag ${{ env.DOCKER_TAG }} \
+          --load \
           .
 
     - name: Ensure the broker is up
