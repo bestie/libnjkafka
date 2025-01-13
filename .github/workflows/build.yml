@@ -16,6 +16,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Where is the work space?
+      run: echo "${{ github.workspace }}"
+
+    - name: Where is the current dir?
+      run: pwd
+
     - name: Pull the docker-compose stack
       run: docker compose pull --quiet
 
@@ -46,9 +52,6 @@ jobs:
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
-
-    - name: Verify Docker image exists
-      run: docker images
 
     - name: Build the library
       run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make
