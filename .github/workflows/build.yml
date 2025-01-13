@@ -16,6 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Pull the docker-compose stack
+      run: docker compose pull --progress=plain
+
     - name: Cache Docker layers
       uses: actions/cache@v3
       with:
@@ -28,13 +31,7 @@ jobs:
       uses: docker/setup-buildx-action@v2
 
     - name: Build the Docker image
-      run: docker buildx build \
-        --build-arg ARCHITECTURE=x64 \
-        --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 \
-        --cache-from=type=local,src=/tmp/.buildx-cache \
-        --cache-to=type=local,dest=/tmp/.buildx-cache \
-        --tag ${{ env.DOCKER_TAG }} \
-        .
+      run: docker buildx build --build-arg ARCHITECTURE=x64 --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache --tag ${{ env.DOCKER_TAG }} .
 
     - name: Bring up docker-compose stack
       run: docker compose up --detach
