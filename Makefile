@@ -191,7 +191,7 @@ $(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
 	mkdir -p $(DEMO_DIR)/ruby/build
 	cp $(DEMO_DIR)/ruby/extconf.rb $(DEMO_DIR)/ruby/build
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && LIB_DIR=$(PROJECT_HOME)/$(BUILD_DIR) LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) DYLD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR)  ruby extconf.rb
+	cd $(DEMO_DIR)/ruby/build && LIB_DIR=$(PROJECT_HOME)/$(BUILD_DIR) LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby extconf.rb
 
 ## C Demo #####################################################################
 

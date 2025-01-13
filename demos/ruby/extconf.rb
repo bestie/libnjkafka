@@ -7,7 +7,6 @@ lib_dir = include_dir
 dir_config('libnjkafka', include_dir, lib_dir)
 
 $CFLAGS << " -I#{include_dir} -g"
-# $LDFLAGS << " -Wl,-rpath,#{lib_dir}"
 
 unless have_header('libnjkafka.h')
   abort "libnjkafka.h is missing. Please ensure it is located in `#{include_dir}` and try again."
