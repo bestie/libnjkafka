@@ -48,7 +48,7 @@ jobs:
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Verify Docker image exists
-      run: docker images | grep ${{ env.DOCKER_TAG }}
+      run: docker images
 
     - name: Build the library
       run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make
