@@ -36,7 +36,8 @@ jobs:
         --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 \
         --cache-from=type=local,src=/tmp/.buildx-cache \
         --cache-to=type=local,dest=/tmp/.buildx-cache \
-        --tag ${{ env.DOCKER_TAG }} .
+        --tag ${{ env.DOCKER_TAG }} \
+        .
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
