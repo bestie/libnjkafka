@@ -19,6 +19,9 @@ jobs:
     - name: Pull the docker-compose stack
       run: docker compose pull --quiet
 
+    - name: Bring up docker-compose stack
+      run: docker compose up --detach
+
     - name: Cache Docker layers
       uses: actions/cache@v3
       with:
@@ -39,9 +42,6 @@ jobs:
           --cache-to=type=local,dest=/tmp/.buildx-cache \
           --tag ${{ env.DOCKER_TAG }} \
           .
-
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
