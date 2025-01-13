@@ -27,17 +27,17 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
-
     - name: Build the Docker image
-      run: docker build \
+      run: docker buildx build \
         --build-arg ARCHITECTURE=x64 \
         --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 \
         --cache-from=type=local,src=/tmp/.buildx-cache \
         --cache-to=type=local,dest=/tmp/.buildx-cache \
         --tag ${{ env.DOCKER_TAG }} \
         .
+
+    - name: Bring up docker-compose stack
+      run: docker compose up --detach
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
