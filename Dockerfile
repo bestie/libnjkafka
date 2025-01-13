@@ -32,6 +32,7 @@ RUN wget --quiet https://downloads.apache.org/kafka/3.9.0/${KAFKA_ARCHIVE}
 ENV JDK_VERSION=$JDK_VERSION
 ARG GRAALVM_HOME=/home/graalvm
 ENV GRAALVM_HOME=$GRAALVM_HOME
+# For arm64, set env var for other architectures
 ARG GRAALVM_SHA256=1835a98b87c439c8c654d97956c22d409855952e5560a8127f56c50f3f919d7d
 
 RUN echo "$GRAALVM_SHA256 *${GRAALVM_ARCHIVE}" | sha256sum --strict --check
@@ -51,14 +52,6 @@ RUN bash -c "ln -s /home/kafka* $KAFKA_HOME"
 ENV PATH=$GRAALVM_HOME/bin:$PATH
 ENV PATH=$KAFKA_HOME/bin:$PATH
 
+# Mount project files here or use as base image
 RUN mkdir /libnjkafka
 WORKDIR /libnjkafka
-
-COPY src ./src
-COPY csrc ./csrc
-COPY include ./include
-COPY scripts ./scripts
-COPY demos ./demos
-COPY Makefile .
-
-CMD ["make"]

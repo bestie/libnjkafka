@@ -115,7 +115,7 @@ docker-make: docker-build
 		--rm \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):/libnjkafka \
 		$(DOCKER_TAG) \
 		make
 
@@ -125,7 +125,7 @@ docker-demos: docker-build
 		--rm \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):/libnjkafka \
 		$(DOCKER_TAG) \
 		make c_demo
 
@@ -135,7 +135,7 @@ docker-bash: docker-build
 		--rm --interactive --tty \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):$(DOCKER_PROJECT_HOME)/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):$(DOCKER_PROJECT_HOME) \
 		$(DOCKER_TAG) \
 		/bin/bash -l
 

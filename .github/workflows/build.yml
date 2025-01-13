@@ -16,17 +16,32 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - uses: actions/cache@v4
+      id: docker-compose-cache
+      with:
+        key: docker-compose-cache-${{ hashFiles('docker-compose.yml') }}
+
+    - name: Pull the docker compose images
+      if: steps.docker-compose-cache.cache-hit != 'true'
+      run: docker compose pull
+
     - name: Bring up docker-compose stack
       run: docker compose up --detach
 
+    - uses: actions/cache@v4
+      id: docker-build-image-cache
+      with:
+        key: ${{ runner.os }}-${{ hashFiles('Dockerfile') }}
+
     - name: Build the Docker image
+      if: steps.docker-build-image-cache.cache-hit != 'true'
       run: docker build --build-arg ARCHITECTURE=x64 --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 --tag ${{ env.DOCKER_TAG }} .
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Build the library
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
@@ -34,11 +49,17 @@ jobs:
         name: build-artifacts
         path: build/
 
-    - name: Run the demo/test program
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }} make c_demo
+    - name: Run the C test program
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make c_demo
+
+    - uses: actions/cache@v4
+      id: ruby-docker-image-cache
+      with:
+        key: ruby-docker-image-cache-${{ hashFiles('Dockerfile.ruby') }}
 
     - name: Build the Ruby test demo
+      if: steps.ruby-docker-image-cache.cache-hit != 'true'
       run: docker build --tag ${{ env.DOCKER_TAG }}-ruby --file Dockerfile.ruby .
 
     - name: Run the Ruby test demo
-      run: docker run --network=host --rm --volume ${{ github.workspace }}/build:/libnjkafka/build ${{ env.DOCKER_TAG }}-ruby make ruby_demo
+      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }}-ruby make ruby_demo
