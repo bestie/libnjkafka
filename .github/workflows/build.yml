@@ -22,8 +22,27 @@ jobs:
     - name: Bring up docker-compose stack
       run: docker compose up --detach
 
-    - name: Build the Docker image
-      run: docker build --build-arg ARCHITECTURE=x64 --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 --tag ${{ env.DOCKER_TAG }} .
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-docker-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-docker-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build the Docker image for library compilation
+      run: |
+        docker buildx build \
+          --build-arg ARCHITECTURE=x64 \
+          --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 \
+          --cache-from=type=local,src=/tmp/.buildx-cache \
+          --cache-to=type=local,dest=/tmp/.buildx-cache \
+          --tag ${{ env.DOCKER_TAG }} \
+          --load \
+          .
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
@@ -40,8 +59,15 @@ jobs:
     - name: Run the demo/test program
       run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make c_demo
 
-    - name: Build the Ruby test demo
-      run: docker build --tag ${{ env.DOCKER_TAG }}-ruby --file Dockerfile.ruby .
+    - name: Build the Docker image for the Ruby C extension
+      run: |
+        docker buildx build \
+          --cache-from=type=local,src=/tmp/.buildx-cache \
+          --cache-to=type=local,dest=/tmp/.buildx-cache \
+          --tag ${{ env.DOCKER_TAG }}-ruby \
+          --file Dockerfile.ruby \
+          --load \
+          .
 
-    - name: Run the Ruby test demo
+    - name: Compile the Ruby C extension and run the demo program
       run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }}-ruby make ruby_demo
