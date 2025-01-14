@@ -1,14 +1,7 @@
-# Use the Ruby base image
-FROM ruby:latest
+FROM ruby:3.3.6-bookworm
 
 RUN apt update && apt install -y time
 
-# Your Ruby application setup goes here
-WORKDIR /app
-COPY build ./build
-COPY demos ./demos
-COPY Makefile .
-
-RUN make ruby_c_ext
-
-CMD ["make", "ruby_demo"]
+# Mount project files here or use as base image
+RUN mkdir /libnjkafka
+WORKDIR /libnjkafka

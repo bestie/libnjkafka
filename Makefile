@@ -30,7 +30,7 @@ JAVAC_VERSION = 22
 NATIVE_IMAGE = $(GRAALVM_HOME)/bin/native-image
 NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) --native-compiler-options="-I$(PROJECT_HOME)/$(BUILD_DIR)"  -H:ConfigurationFileDirectories=$(GRAALVM_AGENT_CONFIG_DIR)
 
-# C compilation	
+# C compilation
 C_SRC = csrc
 C_SRCS = $(wildcard $(C_SRC)/*.c)
 C_FLAGS = -Wall -Werror -fPIC -g
@@ -67,7 +67,9 @@ lib: $(SHARED_LIBRARY_OBJECT)
 
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
-	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) $(GRAALVM_NATIVE_OBJECT)
+	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
+		-L$(PROJECT_HOME)/$(BUILD_DIR) \
+		-lnjkafka_core
 
 .PHONY: c_api
 c_api: $(C_API_OBJECT)
@@ -82,7 +84,7 @@ native: $(GRAALVM_NATIVE_OBJECT)
 $(GRAALVM_NATIVE_OBJECT): $(JNI_CONFIG) $(STRUCT_DEFINITIONS)
 	mkdir -p $(BUILD_DIR)
 	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
-	$(NATIVE_IMAGE) -o libnjkafka_core --shared -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
+	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
 
 .PHONY: jni-config
 jni-config: $(JNI_CONFIG)
@@ -115,7 +117,7 @@ docker-make: docker-build
 		--rm \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):/libnjkafka \
 		$(DOCKER_TAG) \
 		make
 
@@ -125,7 +127,7 @@ docker-demos: docker-build
 		--rm \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):/libnjkafka/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):/libnjkafka \
 		$(DOCKER_TAG) \
 		make c_demo
 
@@ -135,7 +137,7 @@ docker-bash: docker-build
 		--rm --interactive --tty \
 		--network=host \
 		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME)/$(BUILD_BASE_DIR):$(DOCKER_PROJECT_HOME)/$(BUILD_BASE_DIR) \
+		-v $(PROJECT_HOME):$(DOCKER_PROJECT_HOME) \
 		$(DOCKER_TAG) \
 		/bin/bash -l
 
@@ -150,6 +152,17 @@ ruby_clean:
 	rm -f $(DEMO_DIR)/ruby/build/*
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
+
+docker_ruby_demo: ruby_clean
+	docker build -t libnjkafka-ruby-demo -f Dockerfile.ruby .
+	docker run \
+		--rm \
+		--interactive --tty \
+		--network=host \
+		-e KAFKA_BROKERS=host.docker.internal:9092 \
+		-v $(PROJECT_HOME):/libnjkafka \
+		libnjkafka-ruby-demo \
+		make ruby_demo
 
 .PHONY: ruby_demo
 ruby_demo: $(RUBY_C_EXT_BUNDLE)
