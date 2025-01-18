@@ -2,29 +2,23 @@
 
 CURRENTLY AN EXPERIMENTAL PROOF OF CONCEPT
 
-libnjkafka is a "native Java" C compatible client library for Apache Kafka.
+libnjkafka combines the offical Apache Kafka Java client, GraalVM's native Java
+compilation capabilities and convenient C API wrapper.
 
-It provides a native, C compatible API on top of the official Apache Kafka client library.
-
+It behaves like a regular C library.
+It has no dependencies other than libc.
 It does not run on the JVM.
-
 It starts up _fast_.
-
-You can use it in your C programs, C extensions or via FFI.
 
 ## Why?
 
-Kafka is major part of Zendesk infrastructure with a high level of complexity on the client side.
+The official Java library is the best maintained and supported library available.
 
-The Java library is the official, canonical, best maintained and best documented Kafka client available.
+Alternative implementations vary in behvior, maturity and feature completeness.
 
-Replica libraries have shown to differ in behavior and default configuration (intentional or otherwise) which can be a problem.
+It allows JVM and non-JVM projects to share consistent client features and behavior.
 
-Aligning on the same tech / libraries is better than diverging.
-
-Alternatives exist in varying levels of maturity and feature completeness.
-
-Even `librdkafka` lags behind and explicitly excludes features despite being supported by Confluent.
+Finally, After experiencing some of the issues elluded to above, I decided this would be a fun pet project.
 
 ## C API
 
@@ -38,26 +32,15 @@ libnjkafka_consumer_poll_each_message // automatically frees memory and commits 
 libnjkafka_consumer_commit_all_sync
 libnjkafka_consumer_close
 ```
+## Other Languages
 
-## Ruby C extension
+Included is a Ruby C extension and test program that runs under the a recent MRI version (3.3.6).
 
-Included is a Ruby C extension and test program that runs under the latest MRI (3.3.3).
-
-## Go
-
-Seems easy.
-
-## TypeScript
-
-How hard could it be?
+Python, Go and many other languages can easily interface with libnjkafka via FFI.
 
 ## Thread Safety
 
-GraalVM provides some safety via its Java to C API which insists that all function calls pass an associated 'isolate thread' which maps to the isolated the execution context for the function call.
-
-libnjkafka does not allow C threads to share isolate threads.
-
-The C main thread is attached to a isolate thread by default, further threads can create their own isolate threads by calling `libnjkafka_init_thread()` and clean up with `libnjkafka_teardown_thread()`.
+While yet untested, libnjkafka will leverage GraalVM functionality to provide thread safety.
 
 ## Building the library
 
@@ -75,11 +58,12 @@ To build the library you need a Kafka broker because the code analysis stage exe
 
 The included Docker Compose configuration, will run a Kafka Broker and Zookeeper.
 
-There must also be a topic with some messages to read. `make topic` create and populate a topic.
 ```
 docker-compose up --detach
-make topic docker-make
 ```
+
+There must also be a topic with some messages to read. `make topic` creates and populates a topic with tests messages.
+
 Artifacts will be written to your host's file system in the project's build directory.
 
 ### Build On macOS
