@@ -2,23 +2,21 @@
 
 CURRENTLY AN EXPERIMENTAL PROOF OF CONCEPT
 
-libnjkafka combines the offical Apache Kafka Java client, GraalVM's native Java
-compilation capabilities and convenient C API wrapper.
+libnjkafka is a "native Java" Kafka client.
 
-It behaves like a regular C library.
-It has no dependencies other than libc.
-It does not run on the JVM.
-It starts up _fast_.
+The official client is compiled to a native binary with GraalVM and wrapped in
+a more convenient C API.
+
+* It behaves like a regular C library.
+* It runs natively with no JVM.
+* It has no dependencies other than libc.
+* It starts up _fast_.
 
 ## Why?
 
-The official Java library is the best maintained and supported library available.
-
-Alternative implementations vary in behvior, maturity and feature completeness.
-
-It allows JVM and non-JVM projects to share consistent client features and behavior.
-
-Finally, After experiencing some of the issues elluded to above, I decided this would be a fun pet project.
+1. Alternative client implementations vary in behvior, maturity and feature completeness,
+libnjkafka aims to provide a C compatible interface to the canonical implementation.
+2. "It will be fun", they said.
 
 ## C API
 
@@ -28,104 +26,31 @@ The public C API provides convenient functions:
 libnjkafka_create_consumer
 libnjkafka_consumer_subscribe
 libnjkafka_consumer_poll
-libnjkafka_consumer_poll_each_message // automatically frees memory and commits offsets
+libnjkafka_consumer_poll_each_message // passes messages to a function then calls `free`
 libnjkafka_consumer_commit_all_sync
 libnjkafka_consumer_close
 ```
 ## Other Languages
 
-Included is a Ruby C extension and test program that runs under the a recent MRI version (3.3.6).
+Included is a Ruby C extension and test program that
 
 Python, Go and many other languages can easily interface with libnjkafka via FFI.
 
-## Thread Safety
-
-While yet untested, libnjkafka will leverage GraalVM functionality to provide thread safety.
-
 ## Building the library
 
-Instructions are for macOS hosts to build natively or using Docker.
+The `Makefile` can build the library for macOS and Linux.
 
-There is a horrible Makefile that handles most of it.
+To build with Docker `make docker-make` will build the container, mount the
+project directory and run `make` inside it.
 
-### Build The Docker Image
+The binary and headers will be written to the `./build` directory
 
-```
-make docker-build
-```
+A Kafka broker is necessary for the build process so GraalVM can run the Java
+code and discover what Java code must be compiled into the native binary.
 
-To build the library you need a Kafka broker because the code analysis stage executes a simple consumer program.
-
-The included Docker Compose configuration, will run a Kafka Broker and Zookeeper.
-
-```
-docker-compose up --detach
-```
-
-There must also be a topic with some messages to read. `make topic` creates and populates a topic with tests messages.
-
-Artifacts will be written to your host's file system in the project's build directory.
-
-### Build On macOS
-
-You will need:
-* GraalVM for building the native image from Java code
-* clang for compiling the C API wrapper, C demo and Ruby C extension
-* Apache Kafka Consumer Java library
-* A Kakfa broker and Zookeeper server for code analysis
-
-You must set `GRAALVM_HOME` and `KAFKA_HOME` to point to the relevent installations.
-
-Assuming those are in place, you can build using the horrible Makefile.
-
-Build the library:
-```
-make all
-```
-
-Run the C demo program:
-```
-make c_demo
-```
-
-Run the Ruby demo program:
-```
-make ruby_demo
-```
-
-#### Download GraalVM
-
-In the project root:
-
-```
-mkdir -p graalvm
-cd graalvm
-wget https://download.oracle.com/graalvm/22/latest/graalvm-jdk-22_macos-x64_bin.tar.gz
-tar -xzf graalvm-jdk-22_macos-x64_bin.tar.gz
-```
-
-Then set the environment variable, maybe in a `.env` file
-
-```
-export GRAALVM_HOME=./graalvm-jdk-22.0.1+8.1/Contents/Home
-```
-
-#### Download Kafka Consumer Library
-
-In the project root:
-
-```
-mkdir -p lib
-cd lib
-wget https://downloads.apache.org/kafka/3.7.0/kafka_2.13-3.7.0.tgz
-tar -xzf kafka_2.13-3.7.0.tgz
-```
-
-Then set the environment variable, maybe in a `.env` file
-
-```
-export KAFKA_HOME=./lib/kafka_2.13-3.7.0
-```
+Both the `Makefile` and `Dockerfile` assume a Kafka broker is running on `localhost:9092`.
+You can set the `KAFKA_BROKERS` environment variable to point to another host/port.
+There is an included `Docker Compose` configuration to run a broker on the expected port (this how it builds in GitHub Actions).
 
 ## Copyright and license
 
