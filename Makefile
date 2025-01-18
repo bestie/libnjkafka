@@ -213,9 +213,10 @@ clean:
 	rm -rf ruby/build/*
 	rm -rf $(JAVA_BIN)/*
 	rm -rf $(GRAALVM_AGENT_CONFIG_DIR)
-	rm -rf $(BUILD_DIR)/*
+	rm -rf $(BUILD_BASE_DIR)/*
 	rm -f *.log
 	rm -f *.json
+	rm $(BUILD_BASE_DIR)/.docker_build
 
 .PHONY: topic
 topic: $(BUILD_BASE_DIR)/.topic
