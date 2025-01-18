@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+DOCKERFILE="${DOCKERFILE:=./Dockerfile}"
+DOCKER_TAG="${DOCKER_TAG:=libnjkafka:latest}"
+DOCKER_PROJECT_HOME="${DOCKER_PROJECT_HOME:=/libnjkafka}"
+KAFKA_BROKERS="${KAFKA_BROKERS:=host.docker.internal:9092}"
+
+if [ -t 0 ]; then
+  tty_flags="--interactive --tty"
+else
+  tty_flags=""
+fi
+
+docker run \
+  $tty_flags \
+  --rm \
+  --network=host \
+  -e KAFKA_BROKERS=$KAFKA_BROKERS \
+  -v ./:$DOCKER_PROJECT_HOME \
+  $DOCKER_TAG \
+  $@
