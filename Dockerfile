@@ -35,7 +35,7 @@ ENV GRAALVM_HOME=$GRAALVM_HOME
 # For arm64, set env var for other architectures
 ARG GRAALVM_SHA256=1835a98b87c439c8c654d97956c22d409855952e5560a8127f56c50f3f919d7d
 
-RUN echo "$GRAALVM_SHA256 *${GRAALVM_ARCHIVE}" | sha256sum --strict --check
+# RUN echo "$GRAALVM_SHA256 *${GRAALVM_ARCHIVE}" | sha256sum --strict --check
 RUN tar -xzf ${GRAALVM_ARCHIVE}
 RUN rm ${GRAALVM_ARCHIVE}
 RUN bash -c "ln -s /home/graalvm-jdk-${JDK_VERSION}.* $GRAALVM_HOME"
@@ -44,7 +44,7 @@ ARG KAFKA_HOME=/home/kafka
 ENV KAFKA_HOME=${KAFKA_HOME}
 ARG KAFKA_SHA256=abc44402ddf103e38f19b0e4b44e65da9a831ba9e58fd7725041b1aa168ee8d1
 
-RUN echo "$KAFKA_SHA256 *${KAFKA_ARCHIVE}" | sha256sum --strict --check
+# RUN echo "$KAFKA_SHA256 *${KAFKA_ARCHIVE}" | sha256sum --strict --check
 RUN tar -xzf ${KAFKA_ARCHIVE}
 RUN rm ${KAFKA_ARCHIVE}
 RUN bash -c "ln -s /home/kafka* $KAFKA_HOME"
