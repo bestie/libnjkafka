@@ -216,7 +216,7 @@ clean:
 	rm -rf $(BUILD_BASE_DIR)/*
 	rm -f *.log
 	rm -f *.json
-	rm $(BUILD_BASE_DIR)/.docker_build
+	rm -f $(BUILD_BASE_DIR)/.docker_build
 
 .PHONY: topic
 topic: $(BUILD_BASE_DIR)/.topic
