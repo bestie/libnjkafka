@@ -2,6 +2,16 @@
 #define LIBNJKAFKA_STRUCTS_H
 
 typedef struct {
+    char* topic;
+    int partition;
+} libnjkafka_TopicPartition;
+
+typedef struct {
+    int count;
+    libnjkafka_TopicPartition* topic_partitions;
+} libnjkafka_TopicPartition_List;
+
+typedef struct {
     long id;
 } libnjkafka_Consumer;
 

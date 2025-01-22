@@ -53,20 +53,10 @@ int libnjkafka_teardown() {
     return result;
 }
 
-libnjkafka_Consumer* libnjkafka_create_consumer(char* group_id) {
-    printf("Creating consumer with group_id: %s\n", group_id);
-
-    long consumer_id = libnjkafka_java_create_consumer(graalvm_thread_isolate, group_id);
-
-    libnjkafka_Consumer* consumer = (libnjkafka_Consumer*) malloc(sizeof(libnjkafka_Consumer));
-    consumer->id = consumer_id;
-    return consumer;
-}
-
-libnjkafka_Consumer* libnjkafka_create_consumer_with_config(libnjkafka_ConsumerConfig* config) {
+libnjkafka_Consumer* libnjkafka_create_consumer(libnjkafka_ConsumerConfig* config) {
     printf("Creating consumer with config\n");
 
-    long consumer_id = libnjkafka_java_create_consumer_with_config(graalvm_thread_isolate, config);
+    long consumer_id = libnjkafka_java_create_consumer(graalvm_thread_isolate, config);
 
     libnjkafka_Consumer* consumer = (libnjkafka_Consumer*) malloc(sizeof(libnjkafka_Consumer));
     consumer->id = consumer_id;
@@ -126,6 +116,14 @@ libnjkafka_BatchResults libnjkafka_consumer_poll_each_message(libnjkafka_Consume
 
     free(records);
     return results;
+}
+
+libnjkafka_TopicPartition_List* libnjkafka_consumer_assignment(libnjkafka_Consumer* consumer) {
+    printf("Getting consumer assignment\n");
+
+    libnjkafka_TopicPartition_List* topic_partitions = libnjkafka_java_consumer_assignment(graalvm_thread_isolate, consumer->id);
+
+    return topic_partitions;
 }
 
 int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
