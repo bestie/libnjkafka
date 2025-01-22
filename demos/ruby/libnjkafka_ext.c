@@ -187,7 +187,7 @@ static VALUE create_consumer(VALUE self, VALUE config_hash) {
 
     libnjkafka_ConsumerConfig config = hash_to_consumer_config(config_hash);
 
-    libnjkafka_Consumer* consumer_ref = libnjkafka_create_consumer_with_config(&config);
+    libnjkafka_Consumer* consumer_ref = libnjkafka_create_consumer(&config);
     if (consumer_ref == NULL || consumer_ref->id == -1) {
         rb_raise(rb_eRuntimeError, "Failed to create Kafka consumer");
     }

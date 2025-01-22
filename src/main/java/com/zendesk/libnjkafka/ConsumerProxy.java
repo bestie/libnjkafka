@@ -1,58 +1,59 @@
 package com.zendesk.libnjkafka;
 
+import java.lang.String;
+import java.time.Duration;
+import java.util.Collection;
+import java.util.Properties;
+import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Properties;
+import org.apache.kafka.common.TopicPartition;
 
 public class ConsumerProxy {
-    private KafkaConsumer<String, String> consumer;
+  private final KafkaConsumer<String, String> delegate;
 
-    public static ConsumerProxy createConsumer(Properties configuredProperties) {
-        Properties allConfig = mergeDefaultConfig(configuredProperties);
+  public static ConsumerProxy create(Properties properties) {
+    return new ConsumerProxy(new KafkaConsumer<>(mergeDefaultConfig(properties)));
+  }
 
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(allConfig);
+  public ConsumerProxy(KafkaConsumer<String, String> delegate) {
+    this.delegate = delegate;
+  }
 
-        ConsumerProxy instance = new ConsumerProxy(consumer);
-        return instance;
-    }
+  public Set<TopicPartition> assignment() {
+    return delegate.assignment();
+  }
 
-    public ConsumerProxy(KafkaConsumer<String, String> consumer) {
-        this.consumer = consumer;
-    }
+  public void close() {
+    delegate.close();
+  }
 
-    public void subscribe(String topicName) {
-        consumer.subscribe(Arrays.asList(topicName));
-    }
+  public void commitSync(Duration arg0) {
+    delegate.commitSync(arg0);
+  }
 
-    public ConsumerRecords<String, String> poll(Duration duration) {
-        return consumer.poll(duration);
-    }
+  public void subscribe(Collection<String> arg0) {
+    delegate.subscribe(arg0);
+  }
 
-    public void commitSync(Duration timeout) {
-        consumer.commitSync(timeout);
-    }
+  public ConsumerRecords<String, String> poll(Duration arg0) {
+    return delegate.poll(arg0);
+  }
 
-    public void close() {
-        consumer.close();
-    }
+  private static Properties mergeDefaultConfig(Properties configuredProps) {
+    Properties props = defaultProperties();
+    props.putAll(configuredProps);
+    return props;
+  }
 
-    private static Properties mergeDefaultConfig(Properties configuredProps) {
-        Properties props = defaultProperties();
-        props.putAll(configuredProps);
-        return props;
-    }
-
-    public static Properties defaultProperties() {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("enable.auto.commit", "true");
-        props.put("auto.commit.interval.ms", "1000");
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("auto.offset.reset", "earliest");
-        return props;
-    }
+  public static Properties defaultProperties() {
+    Properties props = new Properties();
+    props.put("bootstrap.servers", "localhost:9092");
+    props.put("enable.auto.commit", "true");
+    props.put("auto.commit.interval.ms", "1000");
+    props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+    props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+    props.put("auto.offset.reset", "earliest");
+    return props;
+  }
 }

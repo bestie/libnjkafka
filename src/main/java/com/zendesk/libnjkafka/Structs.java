@@ -18,6 +18,32 @@ public class Structs {
         }
     }
 
+    @CStruct("libnjkafka_TopicPartition")
+    interface TopicPartitionLayout extends PointerBase {
+        @CField("topic")
+        CCharPointer getTopic();
+        @CField("topic")
+        void setTopic(CCharPointer topic);
+
+        @CField("partition")
+        int getPartition();
+        @CField("partition")
+        void setPartition(int partition);
+    }
+
+    @CStruct("libnjkafka_TopicPartition_List")
+    interface TopicPartitionListLayout extends PointerBase {
+        @CField("count")
+        int getCount();
+        @CField("count")
+        void setCount(int count);
+
+        @CField("topic_partitions")
+        PointerBase getTopicPartitions();
+        @CField("topic_partitions")
+        void setTopicPartitions(PointerBase topic_partitions);
+    }
+
     @CStruct("libnjkafka_ConsumerRecord")
     interface ConsumerRecordLayout extends PointerBase {
         @CField("partition")

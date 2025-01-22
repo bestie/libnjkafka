@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <assert.h>
 #include <unistd.h>
 
 #include "libnjkafka.h"
@@ -62,7 +61,7 @@ int main() {
     config->request_timeout_ms = 30000;
     config->session_timeout_ms = 10000;
 
-    libnjkafka_Consumer* consumer = libnjkafka_create_consumer_with_config(config);
+    libnjkafka_Consumer* consumer = libnjkafka_create_consumer(config);
 
     libnjkafka_consumer_subscribe(consumer, strdup(kafka_topic));
 
@@ -70,10 +69,17 @@ int main() {
     int max_attempts = 3;
     int attempts = 0;
 
+    libnjkafka_TopicPartition_List* topic_partitions;
+    topic_partitions = libnjkafka_consumer_assignment(consumer);
+    printf("Assigned partitions: %d\n", topic_partitions->count);
+
     while(processed_messages < DEFAULT_EXPECTED_MESSAGE_COUNT && attempts < max_attempts) {
       attempts++;
       libnjkafka_ConsumerRecord_List* record_list = libnjkafka_consumer_poll(consumer, 1000);
       printf("Polled - message count: %d\n", record_list->count);
+
+      topic_partitions = libnjkafka_consumer_assignment(consumer);
+      printf("Assigned partitions: %d\n", topic_partitions->count);
 
       if (record_list == NULL) {
           printf("Error polling for messages\n");
@@ -90,6 +96,18 @@ int main() {
 
       free(record_list);
     }
+
+    char* assigned_topic = topic_partitions->topic_partitions[0].topic;
+    if(strcmp(assigned_topic, kafka_topic) != 0) {
+      printf(RED "libnjkafka_consumer_assignment Error: Expected topic %s, got %s\n" RESET, kafka_topic, assigned_topic);
+      exit(1);
+    }
+
+    if(topic_partitions->count != DEFAULT_PARTITIONS) {
+      printf(RED "libnjkafka_consumer_assignment Error: Expected %d, got %d\n" RESET, DEFAULT_PARTITIONS, topic_partitions->count);
+      exit(1);
+    }
+
     libnjkafka_consumer_commit_all_sync(consumer, 1000);
 
     if(processed_messages != DEFAULT_EXPECTED_MESSAGE_COUNT) {
@@ -106,7 +124,7 @@ int main() {
     snprintf(group_id2, 30, "test-group-%d", rand());
 
     config->group_id = strdup(group_id2);
-    libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer_with_config(config);
+    libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer(config);
     libnjkafka_consumer_subscribe(consumer2, strdup(kafka_topic));
 
     void* opaque = NULL;

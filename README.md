@@ -28,6 +28,7 @@ libnjkafka_consumer_subscribe
 libnjkafka_consumer_poll
 libnjkafka_consumer_poll_each_message // passes messages to a function then calls `free`
 libnjkafka_consumer_commit_all_sync
+libnjkafka_consumer_assignment
 libnjkafka_consumer_close
 ```
 ## Other Languages

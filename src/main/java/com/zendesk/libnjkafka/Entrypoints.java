@@ -1,12 +1,13 @@
 package com.zendesk.libnjkafka;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Properties;
-// import java.util.Set;
+import java.util.Set;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-// import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.TopicPartition;
 import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.UnmanagedMemory;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
@@ -19,31 +20,17 @@ import org.graalvm.word.UnsignedWord;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
+import com.zendesk.libnjkafka.Structs.TopicPartitionLayout;
+import com.zendesk.libnjkafka.Structs.TopicPartitionListLayout;
 
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
 
     @CEntryPoint(name = "libnjkafka_java_create_consumer")
-    public static long createConsumer(IsolateThread thread, CCharPointer cGroupId) {
-        try {
-            String groupId = CTypeConversion.toJavaString(cGroupId);
-            Properties config = new Properties();
-            config.setProperty("group.id", groupId);
-
-            ConsumerProxy consumer = ConsumerProxy.createConsumer(config);
-            long consumerId = consumerRegistry.add(consumer);
-            return consumerId;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    @CEntryPoint(name = "libnjkafka_java_create_consumer_with_config")
     public static long createConsumer(IsolateThread thread, ConsumerConfigLayout cConfig) {
         try {
             Properties config = configToProps(cConfig);
-            ConsumerProxy consumer = ConsumerProxy.createConsumer(config);
+            ConsumerProxy consumer = ConsumerProxy.create(config);
             long consumerId = consumerRegistry.add(consumer);
             return consumerId;
         } catch (Exception e) {
@@ -57,7 +44,7 @@ public class Entrypoints {
         try {
             String topicName = CTypeConversion.toJavaString(topicC);
             ConsumerProxy consumer = consumerRegistry.get(consumerId);
-            consumer.subscribe(topicName);
+            consumer.subscribe(List.of(topicName));
             return 0;
         } catch (Exception e) {
             e.printStackTrace();
@@ -76,6 +63,35 @@ public class Entrypoints {
             e.printStackTrace();
             return -1;
         }
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_consumer_assignment")
+    public static TopicPartitionListLayout assignment(IsolateThread thread, long consumerId) {
+        ConsumerProxy consumer = consumerRegistry.get(consumerId);
+        Set<TopicPartition> topicPartitions = consumer.assignment();
+
+        UnsignedWord struct_size = SizeOf.unsigned(TopicPartitionLayout.class);
+        UnsignedWord totalMemorySize = struct_size.multiply(topicPartitions.size());
+
+        Pointer partitionArray = UnmanagedMemory.calloc(totalMemorySize);
+
+        int i = 0;
+        for (TopicPartition partition : topicPartitions) {
+            UnsignedWord offset = struct_size.multiply(i);
+            TopicPartitionLayout cPartition = (TopicPartitionLayout) partitionArray.add(offset);
+
+            cPartition.setPartition(partition.partition());
+            cPartition.setTopic(CTypeConversion.toCString(partition.topic()).get());
+
+            i++;
+        }
+
+        TopicPartitionListLayout partitionArrayWrapper = UnmanagedMemory
+                .calloc(SizeOf.unsigned(TopicPartitionListLayout.class));
+        partitionArrayWrapper.setCount(i);
+        partitionArrayWrapper.setTopicPartitions(partitionArray);
+
+        return partitionArrayWrapper;
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_poll")
@@ -126,6 +142,7 @@ public class Entrypoints {
     }
 
     public static Properties configToProps(ConsumerConfigLayout config) {
+
         Properties props = new Properties();
 
         setProperty(props, "bootstrap.servers", config.getBootstrapServers());
