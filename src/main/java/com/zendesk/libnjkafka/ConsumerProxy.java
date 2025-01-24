@@ -5,8 +5,10 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.Set;
+import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 public class ConsumerProxy {
@@ -30,6 +32,10 @@ public class ConsumerProxy {
 
   public void commitSync(Duration arg0) {
     delegate.commitSync(arg0);
+  }
+
+  public Map<TopicPartition, OffsetAndMetadata> committed(Set<TopicPartition> partitions, Duration timeout) {
+    return delegate.committed(partitions, timeout);
   }
 
   public void subscribe(Collection<String> arg0) {

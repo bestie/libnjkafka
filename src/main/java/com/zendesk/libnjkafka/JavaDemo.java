@@ -4,9 +4,12 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.Set;
 import java.util.List;
+import java.util.Map;
+import java.lang.Exception;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 public class JavaDemo {
@@ -14,7 +17,20 @@ public class JavaDemo {
         System.out.println("Starting Java consumer demo.");
         System.out.println("This is mainly used for generating a dependency config for the native image.");
 
+        ConsumerProxy consumer = consumer();
         String topicName = System.getenv("KAFKA_TOPIC");
+        consumer.subscribe(List.of(topicName));
+
+        processMessages(consumer);
+        checkAssignedPartitions(consumer);
+        checkCommittedOffsets(consumer);
+        commitOffsets(consumer);
+        checkCommittedOffsets(consumer);
+
+        System.out.println("Done");
+    }
+
+    private static ConsumerProxy consumer() {
         long unixTime = System.currentTimeMillis() / 1000L;
         String groupId = "test-group-" + unixTime;
     
@@ -25,39 +41,44 @@ public class JavaDemo {
         ConsumerProxy unRegisteredConsumer = ConsumerProxy.create(props);
         long consumerId = Entrypoints.consumerRegistry.add(unRegisteredConsumer);
         ConsumerProxy consumer = Entrypoints.consumerRegistry.get(consumerId);
+        return consumer;
+    }
 
-        consumer.subscribe(List.of(topicName));
-
-        int targetMessageCount = 120;
-        int totalMessagesProcessed = 0;
-        int i = 0;
-
-        while (totalMessagesProcessed < targetMessageCount) {
-            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-
-            Set<TopicPartition> assignedPartitions = consumer.assignment();
-            System.out.println("Poll i = " + i + ", assigned partitions:" + assignedPartitions);
-
-            for (ConsumerRecord<String, String> record : records) {
-                System.out.printf("offset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
-                totalMessagesProcessed++;
-                if (totalMessagesProcessed >= targetMessageCount) {
-                    break;
-                }
-            }
+    private static void processMessages(ConsumerProxy consumer) {
+        System.out.println("Polling for messages");
+        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+        for (ConsumerRecord<String, String> record : records) {
+            System.out.println("Received message: " + record.value());
         }
+    }
 
-        System.out.printf("Processed message count = %d\n", totalMessagesProcessed);
+    private static void checkAssignedPartitions(ConsumerProxy consumer) {
+        Set<TopicPartition> assignedPartitions = consumer.assignment();
+        System.out.println("Assigned partitions: " + assignedPartitions);
+    }
 
+    private static void commitOffsets(ConsumerProxy consumer) {
         System.out.println("Committing offsets");
         consumer.commitSync(Duration.ofMillis(1000));
+    }
 
-        Set<TopicPartition> assignedpartitions = consumer.assignment();
-        System.out.println("assigned partitions:" + assignedpartitions);
+    private static void checkCommittedOffsets(ConsumerProxy consumer) {
+        Set<TopicPartition> assignedPartitions = consumer.assignment();
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = consumer.committed(assignedPartitions, Duration.ofMillis(1000));
 
-        System.out.println("Closing consumer");
-        consumer.close();
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
+            OffsetAndMetadata ofm = entry.getValue();
+            String offset = ofm == null ? "null" : Long.toString(ofm.offset());
+            System.out.println("Committed offset for partition " + entry.getKey() + " is " + offset);
+        }
+    }
 
-        System.out.println("Done");
+    private static void closeConsumer(ConsumerProxy consumer) {
+        try {
+            System.out.println("Closing consumer");
+            consumer.close();
+        } catch (Exception e) {
+            System.out.println("Error closing consumer: " + e);
+        }
     }
 }
