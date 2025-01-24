@@ -21,11 +21,14 @@ published_message_count=0
 
 for ((i=1; i<=message_count; i++))
 do
-  key=$((i % partition_count))
+  key=$i
   value="Message $i with key $key"
   published_message_count=$i
   echo "$key:$value"
-done | "kafka-console-producer.sh" --broker-list "${KAFKA_BROKERS}" --topic "${KAFKA_TOPIC}" --property "parse.key=true" --property "key.separator=:"
+done | "kafka-console-producer.sh" --broker-list "${KAFKA_BROKERS}" \
+  --topic "${KAFKA_TOPIC}" \
+  --property "parse.key=true" \
+  --property "key.separator=:"
 
 echo "Published ${published_message_count} messages to ${KAFKA_TOPIC}."
 
