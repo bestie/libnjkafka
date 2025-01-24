@@ -37,7 +37,7 @@ C_FLAGS = -Wall -Werror -fPIC -g
 
 # JAVA source
 JAVA_SRC = src/main/java/com/zendesk/libnjkafka
-JAVA_BIN = bin
+JAVA_BIN = build/java_bin
 CLASSPATH = "$(KAFKA_HOME)/libs/*:src/main/resources:$(JAVA_BIN)"
 GRAALVM_AGENT_CONFIG_DIR = $(BUILD_BASE_DIR)/graalvm_agent_build_configs
 JNI_CONFIG = $(GRAALVM_AGENT_CONFIG_DIR)/reachability-metadata.json
@@ -97,6 +97,7 @@ $(JNI_CONFIG): $(JAVA_ENTRYPOINTS) $(BUILD_BASE_DIR)/.topic
 java: $(JAVA_ENTRYPOINTS)
 
 $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
+	mkdir -p $(JAVA_BIN)
 	$(JAVAC) -cp $(CLASSPATH) -d $(JAVA_BIN) $(JAVA_SRC)/*
 
 ## Docker #####################################################################
@@ -211,7 +212,7 @@ compile_flags.txt: Makefile
 .PHONY: clean
 clean:
 	rm -rf ruby/build/*
-	rm -rf $(JAVA_BIN)/*
+	rm -rf $(JAVA_BIN)
 	rm -rf $(GRAALVM_AGENT_CONFIG_DIR)
 	rm -rf $(BUILD_BASE_DIR)/*
 	rm -f *.log
