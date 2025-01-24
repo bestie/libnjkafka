@@ -40,7 +40,7 @@ JAVA_SRC = src/main/java/com/zendesk/libnjkafka
 JAVA_BIN = build/java_bin
 CLASSPATH = "$(KAFKA_HOME)/libs/*:src/main/resources:$(JAVA_BIN)"
 GRAALVM_AGENT_CONFIG_DIR = $(BUILD_BASE_DIR)/graalvm_agent_build_configs
-JNI_CONFIG = $(GRAALVM_AGENT_CONFIG_DIR)/reachability-metadata.json
+GRAALVM_DEPENDENCY_METADATA = $(GRAALVM_AGENT_CONFIG_DIR)/reachability-metadata.json
 JAVA_ENTRYPOINTS = $(JAVA_BIN)/com/zendesk/libnjkafka/Entrypoints.class
 
 # C source
@@ -54,7 +54,7 @@ GRAALVM_NATIVE_OBJECT = $(BUILD_DIR)/libnjkafka_core.$(LIB_EXT)
 C_API_OBJECT = $(BUILD_DIR)/libnjkafka_c_api.o
 SHARED_LIBRARY_OBJECT = $(BUILD_DIR)/libnjkafka.$(LIB_EXT)
 
-# Used for generating JNI config and demo programs
+# Used for generating the dependency reachability metadata and demo programs
 KAFKA_BROKERS ?= localhost:9092
 KAFKA_TOPIC ?= libnjkafka-build-topic
 
@@ -81,15 +81,15 @@ $(C_API_OBJECT): $(C_API_SRC) $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS)
 .PHONY: native
 native: $(GRAALVM_NATIVE_OBJECT)
 
-$(GRAALVM_NATIVE_OBJECT): $(JNI_CONFIG) $(STRUCT_DEFINITIONS)
+$(GRAALVM_NATIVE_OBJECT): $(GRAALVM_DEPENDENCY_METADATA) $(STRUCT_DEFINITIONS)
 	mkdir -p $(BUILD_DIR)
 	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
 	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
 
-.PHONY: jni-config
-jni-config: $(JNI_CONFIG)
+.PHONY: java-demo
+java-demo: $(GRAALVM_DEPENDENCY_METADATA)
 
-$(JNI_CONFIG): $(JAVA_ENTRYPOINTS) $(BUILD_BASE_DIR)/.topic
+$(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS) $(BUILD_BASE_DIR)/.topic
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) timeout 10 java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
 
