@@ -126,6 +126,14 @@ libnjkafka_TopicPartition_List* libnjkafka_consumer_assignment(libnjkafka_Consum
     return topic_partitions;
 }
 
+libnjkafka_TopicPartitionOffsetAndMetadata_List* libnjkafka_consumer_committed(libnjkafka_Consumer* consumer, libnjkafka_TopicPartition_List* topic_partitions, int timeout_ms) {
+    printf("Getting committed offsets\n");
+
+    libnjkafka_TopicPartitionOffsetAndMetadata_List* offsets = libnjkafka_java_consumer_committed(graalvm_thread_isolate, consumer->id, topic_partitions, timeout_ms);
+
+    return offsets;
+}
+
 int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
     printf("Closing consumer\n");
 

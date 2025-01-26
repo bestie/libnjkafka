@@ -72,14 +72,12 @@ int main() {
     libnjkafka_TopicPartition_List* topic_partitions;
     topic_partitions = libnjkafka_consumer_assignment(consumer);
     printf("Assigned partitions: %d\n", topic_partitions->count);
+    free(topic_partitions);
 
     while(processed_messages < DEFAULT_EXPECTED_MESSAGE_COUNT && attempts < max_attempts) {
       attempts++;
       libnjkafka_ConsumerRecord_List* record_list = libnjkafka_consumer_poll(consumer, 1000);
       printf("Polled - message count: %d\n", record_list->count);
-
-      topic_partitions = libnjkafka_consumer_assignment(consumer);
-      printf("Assigned partitions: %d\n", topic_partitions->count);
 
       if (record_list == NULL) {
           printf("Error polling for messages\n");
@@ -97,23 +95,61 @@ int main() {
       free(record_list);
     }
 
+    topic_partitions = libnjkafka_consumer_assignment(consumer);
+    printf("Assigned partitions: %d\n", topic_partitions->count);
+
     char* assigned_topic = topic_partitions->topic_partitions[0].topic;
-    if(strcmp(assigned_topic, kafka_topic) != 0) {
+    if(strcmp(assigned_topic, kafka_topic) == 0) {
+      printf(GREEN "libnjkafka_consumer_assignment return topic: %s\n" RESET, assigned_topic);
+    } else {
       printf(RED "libnjkafka_consumer_assignment Error: Expected topic %s, got %s\n" RESET, kafka_topic, assigned_topic);
       exit(1);
     }
 
-    if(topic_partitions->count != DEFAULT_PARTITIONS) {
+    if(topic_partitions->count == DEFAULT_PARTITIONS) {
+      printf(GREEN "libnjkafka_consumer_assignment returned %d assiged partitions:\n" RESET, topic_partitions->count);
+
+      for(int i=0; i<topic_partitions->count; i++) {
+        libnjkafka_TopicPartition tp = topic_partitions->topic_partitions[i];
+        printf("  assigned Partition: %d\n", tp.partition);
+      }
+    } else {
       printf(RED "libnjkafka_consumer_assignment Error: Expected %d, got %d\n" RESET, DEFAULT_PARTITIONS, topic_partitions->count);
+      exit(1);
+    }
+
+    if(processed_messages == DEFAULT_EXPECTED_MESSAGE_COUNT) {
+      printf(GREEN "libnjkafka_consumer_poll Processed %d messages as expected.\n" RESET, processed_messages);
+    } else {
+      printf(RED "libnjkafka_consumer_poll Error: Expected %d, got %d\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT, processed_messages);
       exit(1);
     }
 
     libnjkafka_consumer_commit_all_sync(consumer, 1000);
 
-    if(processed_messages != DEFAULT_EXPECTED_MESSAGE_COUNT) {
-      printf(RED "libnjkafka_consumer_poll Error: Expected %d, got %d\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT, processed_messages);
+    libnjkafka_TopicPartitionOffsetAndMetadata_List* offsets = libnjkafka_consumer_committed(consumer, topic_partitions, 1000);
+    free(topic_partitions);
+
+    printf("C-side Got %d offsets \n", offsets->count);
+    if(offsets->count == DEFAULT_PARTITIONS) {
+      printf(GREEN "libnjkafka_consumer_assignment returned %d assiged partitions:\n" RESET, offsets->count);
+
+      for(int i = 0; i < offsets->count; i++) {
+          libnjkafka_TopicPartitionOffsetAndMetadata offset = offsets->items[i];
+          if(strcmp(offset.topic, kafka_topic) != 0) {
+            printf(RED "libnjkafka_consumer_committed Error: Expected topic %s, got %s\n" RESET, kafka_topic, offset.topic);
+            exit(1);
+          }
+          printf("  committed offset for topic %s partition %d: %ld\n", offset.topic, offset.partition, offset.offset);
+      }
+    } else {
+      printf(RED "libnjkafka_consumer_assignment Error: Expected %d, got %d\n" RESET, DEFAULT_PARTITIONS, offsets->count);
       exit(1);
     }
+
+    free(offsets);
+
+    libnjkafka_consumer_close(consumer);
 
     printf("\n\n");
     printf(GREEN "libnjkafka_consumer_poll Processed %d messages as expected.\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT);
@@ -140,7 +176,6 @@ int main() {
     printf(GREEN "libnjkafka_consumer_poll_each_message Processed %d messages as expected.\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT);
     printf("\n\n");
 
-    libnjkafka_consumer_close(consumer);
     libnjkafka_consumer_close(consumer2);
 
     libnjkafka_teardown();

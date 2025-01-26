@@ -4,9 +4,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.Map;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.UnmanagedMemory;
@@ -22,6 +24,8 @@ import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionListLayout;
+import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataLayout;
+import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataListLayout;
 
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
@@ -92,6 +96,52 @@ public class Entrypoints {
         partitionArrayWrapper.setTopicPartitions(partitionArray);
 
         return partitionArrayWrapper;
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_consumer_committed")
+    public static TopicPartitionOffsetAndMetadataListLayout committed(IsolateThread thread, long consumerId, TopicPartitionListLayout cTopicPartitionList, int timeout_milliseconds) {
+        ConsumerProxy consumer = consumerRegistry.get(consumerId);
+        Duration timeout = Duration.ofMillis(timeout_milliseconds);
+
+        System.out.println("++++++++++++++++++ Committed about to convert TPL");
+        Set<TopicPartition> topicPartitionList = Structs.toJava(cTopicPartitionList);
+
+        System.out.println("++++++++++++++++++ Committed converted types");
+
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = consumer.committed(topicPartitionList, timeout);
+
+        System.out.println("++++++++++++++++++ Committed offsets: " + committedOffsets);
+
+        UnsignedWord structSize = SizeOf.unsigned(TopicPartitionOffsetAndMetadataLayout.class);
+        UnsignedWord totalMemorySize = structSize.multiply(committedOffsets.size());
+
+        Pointer structArray = UnmanagedMemory.calloc(totalMemorySize);
+
+        int i = 0;
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
+            UnsignedWord pointerOffset = structSize.multiply(i);
+
+            TopicPartitionOffsetAndMetadataLayout cStruct = (TopicPartitionOffsetAndMetadataLayout) structArray.add(pointerOffset);
+
+            CCharPointer topic = CTypeConversion.toCString(entry.getKey().topic()).get();
+            CCharPointer metadata = CTypeConversion.toCString(entry.getValue().metadata()).get();
+            int partition = entry.getKey().partition();
+            long offset = entry.getValue().offset();
+
+            cStruct.setTopic(topic);
+            cStruct.setMetadata(metadata);
+            cStruct.setPartition(partition);
+            cStruct.setOffset(offset);
+
+            i++;
+        }
+
+        TopicPartitionOffsetAndMetadataListLayout listStruct = UnmanagedMemory
+                .calloc(SizeOf.unsigned(TopicPartitionOffsetAndMetadataListLayout.class));
+        listStruct.setCount(i);
+        listStruct.setItems(structArray);
+
+        return listStruct;
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_poll")

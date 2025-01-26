@@ -1,13 +1,20 @@
 package com.zendesk.libnjkafka;
-
 import java.util.Collections;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.graalvm.nativeimage.c.CContext;
 import org.graalvm.nativeimage.c.struct.CField;
 import org.graalvm.nativeimage.c.struct.CStruct;
 import org.graalvm.nativeimage.c.type.CCharPointer;
+import org.graalvm.word.Pointer;
 import org.graalvm.word.PointerBase;
+import org.graalvm.nativeimage.c.struct.SizeOf;
+import org.graalvm.nativeimage.c.type.CTypeConversion;
+import org.graalvm.word.UnsignedWord;
+
+import org.apache.kafka.common.TopicPartition;
 
 @CContext(Structs.Directives.class)
 public class Structs {
@@ -16,6 +23,42 @@ public class Structs {
         public List<String> getHeaderFiles() {
             return Collections.singletonList("\"libnjkafka_structs.h\"");
         }
+    }
+
+    @CStruct("libnjkafka_TopicPartitionOffsetAndMetadata")
+    interface TopicPartitionOffsetAndMetadataLayout extends PointerBase {
+        @CField("topic")
+        CCharPointer getTopic();
+        @CField("topic")
+        void setTopic(CCharPointer topic);
+
+        @CField("partition")
+        int getPartition();
+        @CField("partition")
+        void setPartition(int partition);
+
+        @CField("offset")
+        long getOffset();
+        @CField("offset")
+        void setOffset(long offset);
+
+        @CField("metadata")
+        CCharPointer getMetadata();
+        @CField("metadata")
+        void setMetadata(CCharPointer metadata);
+    }
+
+    @CStruct("libnjkafka_TopicPartitionOffsetAndMetadata_List")
+    interface TopicPartitionOffsetAndMetadataListLayout extends PointerBase {
+        @CField("count")
+        int getCount();
+        @CField("count")
+        void setCount(int count);
+
+        @CField("items")
+        PointerBase getItems();
+        @CField("items")
+        void setItems(PointerBase items);
     }
 
     @CStruct("libnjkafka_TopicPartition")
@@ -99,7 +142,7 @@ public class Structs {
         void setAutoCommitIntervalMs(int auto_commit_interval_ms);
 
         @CField("auto_offset_reset")
-        void setAutoOffsetReset(CCharPointer auto_offset_reset);
+        void setAutoOffsetReset(PointerBase auto_offset_reset);
 
         @CField("auto_offset_reset")
         CCharPointer getAutoOffsetReset();
@@ -200,4 +243,25 @@ public class Structs {
         @CField("session_timeout_ms")
         int getSessionTimeoutMs();
     }
+
+    public static Set<TopicPartition> toJava(TopicPartitionListLayout cList) {
+        HashSet<TopicPartition> javaSet = new HashSet<>();
+
+        UnsignedWord structSize = SizeOf.unsigned(TopicPartitionLayout.class);
+        Pointer listPointer = (Pointer) cList.getTopicPartitions();
+
+        for (int i = 0; i < cList.getCount(); i++) {
+            UnsignedWord offset = structSize.multiply(i);
+            TopicPartitionLayout cTopicPartition = (TopicPartitionLayout) listPointer.add(offset);
+
+            String topic = CTypeConversion.toJavaString(cTopicPartition.getTopic());
+            Integer partition = cTopicPartition.getPartition();
+
+            TopicPartition javaTopicPartition = new TopicPartition(topic, partition);
+            javaSet.add(javaTopicPartition);
+        }
+
+        return javaSet;
+    }
+
 }

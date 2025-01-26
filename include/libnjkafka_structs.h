@@ -4,6 +4,18 @@
 typedef struct {
     char* topic;
     int partition;
+    long offset;
+    char* metadata;
+} libnjkafka_TopicPartitionOffsetAndMetadata;
+
+typedef struct {
+    int count;
+    libnjkafka_TopicPartitionOffsetAndMetadata* items;
+} libnjkafka_TopicPartitionOffsetAndMetadata_List;
+
+typedef struct {
+    char* topic;
+    int partition;
 } libnjkafka_TopicPartition;
 
 typedef struct {
