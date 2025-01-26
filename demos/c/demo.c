@@ -47,7 +47,7 @@ int main() {
     config->bootstrap_servers = strdup(kafka_brokers);
     config->check_crcs = 1;
     config->client_id = strdup("my-client");
-    config->enable_auto_commit = 1;
+    config->enable_auto_commit = 0;
     config->fetch_max_bytes = 52428800;
     config->fetch_max_wait_ms = 500;
     config->fetch_min_bytes = 1;
