@@ -11,13 +11,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.graalvm.nativeimage.IsolateThread;
-import org.graalvm.nativeimage.UnmanagedMemory;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
-import org.graalvm.nativeimage.c.struct.SizeOf;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
-import org.graalvm.word.Pointer;
-import org.graalvm.word.UnsignedWord;
 
 import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
@@ -39,7 +35,7 @@ public class Entrypoints {
             return consumerId;
         } catch (Exception e) {
             e.printStackTrace();
-            return -1;
+            return (long) -1;
         }
     }
 
@@ -74,74 +70,50 @@ public class Entrypoints {
         ConsumerProxy consumer = consumerRegistry.get(consumerId);
         Set<TopicPartition> topicPartitions = consumer.assignment();
 
-        UnsignedWord struct_size = SizeOf.unsigned(TopicPartitionLayout.class);
-        UnsignedWord totalMemorySize = struct_size.multiply(topicPartitions.size());
-
-        Pointer partitionArray = UnmanagedMemory.calloc(totalMemorySize);
-
-        int i = 0;
-        for (TopicPartition partition : topicPartitions) {
-            UnsignedWord offset = struct_size.multiply(i);
-            TopicPartitionLayout cPartition = (TopicPartitionLayout) partitionArray.add(offset);
-
-            cPartition.setPartition(partition.partition());
-            cPartition.setTopic(CTypeConversion.toCString(partition.topic()).get());
-
-            i++;
-        }
-
-        TopicPartitionListLayout partitionArrayWrapper = UnmanagedMemory
-                .calloc(SizeOf.unsigned(TopicPartitionListLayout.class));
-        partitionArrayWrapper.setCount(i);
-        partitionArrayWrapper.setTopicPartitions(partitionArray);
-
-        return partitionArrayWrapper;
+        return MemoryIterator.allocateAndPopulateStructArray(
+                topicPartitions.size(),
+                TopicPartitionListLayout.class,
+                TopicPartitionLayout.class,
+                iterator -> {
+                    for (TopicPartition topicPartition : topicPartitions) {
+                        TopicPartitionLayout cPartition = iterator.next();
+                        cPartition.setPartition(topicPartition.partition());
+                        cPartition.setTopic(CTypeConversion.toCString(topicPartition.topic()).get());
+                    }
+                }
+                );
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_committed")
     public static TopicPartitionOffsetAndMetadataListLayout committed(IsolateThread thread, long consumerId, TopicPartitionListLayout cTopicPartitionList, int timeout_milliseconds) {
         ConsumerProxy consumer = consumerRegistry.get(consumerId);
         Duration timeout = Duration.ofMillis(timeout_milliseconds);
-
-        System.out.println("++++++++++++++++++ Committed about to convert TPL");
         Set<TopicPartition> topicPartitionList = Structs.toJava(cTopicPartitionList);
-
-        System.out.println("++++++++++++++++++ Committed converted types");
 
         Map<TopicPartition, OffsetAndMetadata> committedOffsets = consumer.committed(topicPartitionList, timeout);
 
-        System.out.println("++++++++++++++++++ Committed offsets: " + committedOffsets);
+        TopicPartitionOffsetAndMetadataListLayout arrayStruct = MemoryIterator.allocateAndPopulateStructArray(
+                committedOffsets.size(),
+                TopicPartitionOffsetAndMetadataListLayout.class,
+                TopicPartitionOffsetAndMetadataLayout.class,
+                iterator -> {
+                    for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
+                        TopicPartitionOffsetAndMetadataLayout cStruct = iterator.next();
 
-        UnsignedWord structSize = SizeOf.unsigned(TopicPartitionOffsetAndMetadataLayout.class);
-        UnsignedWord totalMemorySize = structSize.multiply(committedOffsets.size());
+                        CCharPointer topic = CTypeConversion.toCString(entry.getKey().topic()).get();
+                        CCharPointer metadata = CTypeConversion.toCString(entry.getValue().metadata()).get();
+                        int partition = entry.getKey().partition();
+                        long offset = entry.getValue().offset();
 
-        Pointer structArray = UnmanagedMemory.calloc(totalMemorySize);
+                        cStruct.setTopic(topic);
+                        cStruct.setMetadata(metadata);
+                        cStruct.setPartition(partition);
+                        cStruct.setOffset(offset);
+                    }
+                }
+                );
 
-        int i = 0;
-        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
-            UnsignedWord pointerOffset = structSize.multiply(i);
-
-            TopicPartitionOffsetAndMetadataLayout cStruct = (TopicPartitionOffsetAndMetadataLayout) structArray.add(pointerOffset);
-
-            CCharPointer topic = CTypeConversion.toCString(entry.getKey().topic()).get();
-            CCharPointer metadata = CTypeConversion.toCString(entry.getValue().metadata()).get();
-            int partition = entry.getKey().partition();
-            long offset = entry.getValue().offset();
-
-            cStruct.setTopic(topic);
-            cStruct.setMetadata(metadata);
-            cStruct.setPartition(partition);
-            cStruct.setOffset(offset);
-
-            i++;
-        }
-
-        TopicPartitionOffsetAndMetadataListLayout listStruct = UnmanagedMemory
-                .calloc(SizeOf.unsigned(TopicPartitionOffsetAndMetadataListLayout.class));
-        listStruct.setCount(i);
-        listStruct.setItems(structArray);
-
-        return listStruct;
+        return arrayStruct;
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_poll")
@@ -150,33 +122,25 @@ public class Entrypoints {
 
         ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(duration));
 
-        UnsignedWord struct_size = SizeOf.unsigned(ConsumerRecordLayout.class);
-        UnsignedWord totalMemorySize = struct_size.multiply(records.count());
+        ConsumerRecordListLayout cRecordList = MemoryIterator.allocateAndPopulateStructArray(
+            records.count(),
+            ConsumerRecordListLayout.class,
+            ConsumerRecordLayout.class,
+            iterator -> {
+              for (ConsumerRecord<String, String> record : records) {
+                ConsumerRecordLayout cRecord = iterator.next();
 
-        Pointer recordArray = UnmanagedMemory.calloc(totalMemorySize);
+                cRecord.setOffset(record.offset());
+                cRecord.setPartition(record.partition());
+                cRecord.setTimestamp(record.timestamp());
+                cRecord.setKey(CTypeConversion.toCString(record.key()).get());
+                cRecord.setTopic(CTypeConversion.toCString(record.topic()).get());
+                cRecord.setValue(CTypeConversion.toCString(record.value()).get());
+              }
+            }
+        );
 
-        int i = 0;
-        for (ConsumerRecord<String, String> record : records) {
-            UnsignedWord offset = struct_size.multiply(i);
-
-            ConsumerRecordLayout cRecord = (ConsumerRecordLayout) recordArray.add(offset);
-
-            cRecord.setOffset(record.offset());
-            cRecord.setPartition(record.partition());
-            cRecord.setTimestamp(record.timestamp());
-            cRecord.setKey(CTypeConversion.toCString(record.key()).get());
-            cRecord.setTopic(CTypeConversion.toCString(record.topic()).get());
-            cRecord.setValue(CTypeConversion.toCString(record.value()).get());
-
-            i++;
-        }
-
-        ConsumerRecordListLayout recordArrayWrapper = UnmanagedMemory
-                .calloc(SizeOf.unsigned(ConsumerRecordListLayout.class));
-        recordArrayWrapper.setCount(i);
-        recordArrayWrapper.setRecords(recordArray);
-
-        return recordArrayWrapper;
+        return cRecordList;
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_close")

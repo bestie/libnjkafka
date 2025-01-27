@@ -20,7 +20,7 @@ typedef struct {
 
 typedef struct {
     int count;
-    libnjkafka_TopicPartition* topic_partitions;
+    libnjkafka_TopicPartition* items;
 } libnjkafka_TopicPartition_List;
 
 typedef struct {
@@ -66,5 +66,11 @@ typedef struct {
     int total_records;
     int success_count;
 } libnjkafka_BatchResults;
+
+// This is not used in C code but is necessary to have a generic type for Java
+typedef struct {
+    int count;
+    void* items;
+} libnjkafka_ArrayWrapper;
 
 #endif

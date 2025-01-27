@@ -98,7 +98,7 @@ int main() {
     topic_partitions = libnjkafka_consumer_assignment(consumer);
     printf("Assigned partitions: %d\n", topic_partitions->count);
 
-    char* assigned_topic = topic_partitions->topic_partitions[0].topic;
+    char* assigned_topic = topic_partitions->items[0].topic;
     if(strcmp(assigned_topic, kafka_topic) == 0) {
       printf(GREEN "libnjkafka_consumer_assignment return topic: %s\n" RESET, assigned_topic);
     } else {
@@ -110,7 +110,7 @@ int main() {
       printf(GREEN "libnjkafka_consumer_assignment returned %d assiged partitions:\n" RESET, topic_partitions->count);
 
       for(int i=0; i<topic_partitions->count; i++) {
-        libnjkafka_TopicPartition tp = topic_partitions->topic_partitions[i];
+        libnjkafka_TopicPartition tp = topic_partitions->items[i];
         printf("  assigned Partition: %d\n", tp.partition);
       }
     } else {

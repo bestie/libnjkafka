@@ -1,4 +1,5 @@
 package com.zendesk.libnjkafka;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.HashSet;
@@ -25,8 +26,21 @@ public class Structs {
         }
     }
 
+    @CStruct("libnjkafka_ArrayWrapper")
+    public interface ArrayWrapper extends PointerBase {
+      @CField("count")
+      int getCount();
+      @CField("count")
+      void setCount(int count);
+
+      @CField("items")
+      PointerBase getItems();
+      @CField("items")
+      void setItems(PointerBase items);
+    }
+
     @CStruct("libnjkafka_TopicPartitionOffsetAndMetadata")
-    interface TopicPartitionOffsetAndMetadataLayout extends PointerBase {
+    public interface TopicPartitionOffsetAndMetadataLayout extends PointerBase {
         @CField("topic")
         CCharPointer getTopic();
         @CField("topic")
@@ -49,7 +63,7 @@ public class Structs {
     }
 
     @CStruct("libnjkafka_TopicPartitionOffsetAndMetadata_List")
-    interface TopicPartitionOffsetAndMetadataListLayout extends PointerBase {
+    public interface TopicPartitionOffsetAndMetadataListLayout extends PointerBase {
         @CField("count")
         int getCount();
         @CField("count")
@@ -62,7 +76,7 @@ public class Structs {
     }
 
     @CStruct("libnjkafka_TopicPartition")
-    interface TopicPartitionLayout extends PointerBase {
+    public interface TopicPartitionLayout extends PointerBase {
         @CField("topic")
         CCharPointer getTopic();
         @CField("topic")
@@ -75,20 +89,20 @@ public class Structs {
     }
 
     @CStruct("libnjkafka_TopicPartition_List")
-    interface TopicPartitionListLayout extends PointerBase {
+    public interface TopicPartitionListLayout extends PointerBase {
         @CField("count")
         int getCount();
         @CField("count")
         void setCount(int count);
 
-        @CField("topic_partitions")
-        PointerBase getTopicPartitions();
-        @CField("topic_partitions")
-        void setTopicPartitions(PointerBase topic_partitions);
+        @CField("items")
+        PointerBase getItems();
+        @CField("items")
+        void setItems(PointerBase items);
     }
 
     @CStruct("libnjkafka_ConsumerRecord")
-    interface ConsumerRecordLayout extends PointerBase {
+    public interface ConsumerRecordLayout extends PointerBase {
         @CField("partition")
         int getPartition();
         @CField("partition")
@@ -121,7 +135,7 @@ public class Structs {
     }
 
     @CStruct("libnjkafka_ConsumerRecord_List")
-    interface ConsumerRecordListLayout extends PointerBase {
+    public interface ConsumerRecordListLayout extends PointerBase {
         @CField("count")
         int getCount();
         @CField("count")
@@ -248,7 +262,7 @@ public class Structs {
         HashSet<TopicPartition> javaSet = new HashSet<>();
 
         UnsignedWord structSize = SizeOf.unsigned(TopicPartitionLayout.class);
-        Pointer listPointer = (Pointer) cList.getTopicPartitions();
+        Pointer listPointer = (Pointer) cList.getItems();
 
         for (int i = 0; i < cList.getCount(); i++) {
             UnsignedWord offset = structSize.multiply(i);
