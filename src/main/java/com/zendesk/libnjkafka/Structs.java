@@ -4,7 +4,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Collection;
 
+import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.c.CContext;
 import org.graalvm.nativeimage.c.struct.CField;
 import org.graalvm.nativeimage.c.struct.CStruct;
@@ -13,17 +15,47 @@ import org.graalvm.word.Pointer;
 import org.graalvm.word.PointerBase;
 import org.graalvm.nativeimage.c.struct.SizeOf;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
+import org.graalvm.nativeimage.c.function.CFunctionPointer;
+import org.graalvm.nativeimage.c.function.InvokeCFunctionPointer;
 import org.graalvm.word.UnsignedWord;
 
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 
 @CContext(Structs.Directives.class)
 public class Structs {
     static class Directives implements CContext.Directives {
         @Override
         public List<String> getHeaderFiles() {
-            return Collections.singletonList("\"libnjkafka_structs.h\"");
+            return List.of(
+                    "\"libnjkafka_structs.h\"",
+                    "\"libnjkafka_callbacks.h\""
+                    );
+
         }
+    }
+
+    public interface RebalanceCallback extends CFunctionPointer {
+        @InvokeCFunctionPointer
+        void invoke(IsolateThread thread, TopicPartitionListLayout partitions);
+    }
+
+    @CStruct("libnjkafka_ConsumerRebalanceListener")
+    public interface RebalanceListenerStruct extends PointerBase {
+        @CField("on_partitions_assigned")
+        RebalanceCallback onPartitionsAssigned();
+        @CField("on_partitions_assigned")
+        void onPartitionsAssigned(RebalanceCallback callback);
+
+        @CField("on_partitions_revoked")
+        RebalanceCallback onPartitionsRevoked();
+        @CField("on_partitions_revoked")
+        void onPartitionsRevoked(RebalanceCallback callback);
+
+        @CField("on_partitions_lost")
+        RebalanceCallback onPartitionsLost();
+        @CField("on_partitions_lost")
+        void onPartitionsLost(RebalanceCallback callback);
     }
 
     @CStruct("libnjkafka_ArrayWrapper")
@@ -277,5 +309,4 @@ public class Structs {
 
         return javaSet;
     }
-
 }

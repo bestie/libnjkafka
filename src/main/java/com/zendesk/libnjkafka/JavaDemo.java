@@ -3,23 +3,39 @@ package com.zendesk.libnjkafka;
 import java.time.Duration;
 import java.util.Properties;
 import java.util.Set;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.lang.Exception;
 
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 public class JavaDemo {
-    public static void main(String[] args) {
+    private static List<String> topics;
+
+	public static void main(String[] args) {
         System.out.println("Starting Java consumer demo.");
         System.out.println("This is mainly used for generating a dependency config for the native image.");
 
         ConsumerProxy consumer = consumer();
         String topicName = System.getenv("KAFKA_TOPIC");
-        consumer.subscribe(List.of(topicName));
+        topics = List.of(topicName);
+
+        consumer.subscribe(topics, new ConsumerRebalanceListener() {
+            @Override
+            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+                System.out.println(">>> 👂👂👂👂👂👂👂👂👂👂👂👂Partitions revoked: " + partitions);
+            }
+
+            @Override
+            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+                System.out.println(">>> 👂👂👂👂👂👂👂👂👂👂👂👂Partitions assigned: " + partitions);
+            }
+        });
 
         processMessages(consumer);
         checkAssignedPartitions(consumer);

@@ -84,6 +84,7 @@ native: $(GRAALVM_NATIVE_OBJECT)
 $(GRAALVM_NATIVE_OBJECT): $(GRAALVM_DEPENDENCY_METADATA) $(STRUCT_DEFINITIONS)
 	mkdir -p $(BUILD_DIR)
 	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
+	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
 	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
 
 .PHONY: java-demo

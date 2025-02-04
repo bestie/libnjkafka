@@ -18,6 +18,7 @@ import org.graalvm.nativeimage.c.type.CTypeConversion;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
+import com.zendesk.libnjkafka.Structs.RebalanceListenerStruct;
 import com.zendesk.libnjkafka.Structs.TopicPartitionLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionListLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataLayout;
@@ -40,11 +41,16 @@ public class Entrypoints {
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_subscribe")
-    public static int subscribe(IsolateThread thread, long consumerId, CCharPointer topicC) {
+    public static int subscribe(IsolateThread thread, long consumerId, CCharPointer topicC, RebalanceListenerStruct cRebalanceListener) {
         try {
+
             String topicName = CTypeConversion.toJavaString(topicC);
             ConsumerProxy consumer = consumerRegistry.get(consumerId);
-            consumer.subscribe(List.of(topicName));
+            List<String> topics = List.of(topicName);
+            RebalanceCallbackAdapter listener = new RebalanceCallbackAdapter(consumer, cRebalanceListener);
+
+            consumer.subscribe(topics, listener);
+
             return 0;
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,7 +76,11 @@ public class Entrypoints {
         ConsumerProxy consumer = consumerRegistry.get(consumerId);
         Set<TopicPartition> topicPartitions = consumer.assignment();
 
-        return MemoryIterator.allocateAndPopulateStructArray(
+        return toCStruct(topicPartitions);
+    }
+
+	public static TopicPartitionListLayout toCStruct(Set<TopicPartition> topicPartitions) {
+		return MemoryIterator.allocateAndPopulateStructArray(
                 topicPartitions.size(),
                 TopicPartitionListLayout.class,
                 TopicPartitionLayout.class,
@@ -82,7 +92,7 @@ public class Entrypoints {
                     }
                 }
                 );
-    }
+	}
 
     @CEntryPoint(name = "libnjkafka_java_consumer_committed")
     public static TopicPartitionOffsetAndMetadataListLayout committed(IsolateThread thread, long consumerId, TopicPartitionListLayout cTopicPartitionList, int timeout_milliseconds) {
@@ -120,6 +130,7 @@ public class Entrypoints {
     public static ConsumerRecordListLayout poll(IsolateThread thread, long consumerId, long duration) {
         ConsumerProxy consumer = consumerRegistry.get(consumerId);
 
+        consumer.setPollingThread(thread);
         ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(duration));
 
         ConsumerRecordListLayout cRecordList = MemoryIterator.allocateAndPopulateStructArray(

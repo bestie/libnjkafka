@@ -6,6 +6,7 @@ import org.graalvm.word.UnsignedWord;
 
 import java.util.function.Consumer;
 
+import org.graalvm.word.WordFactory;
 import org.graalvm.nativeimage.UnmanagedMemory;
 
 import com.zendesk.libnjkafka.Structs.ArrayWrapper;
@@ -52,7 +53,7 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     }
 
     private void ensureFullAllocation() {
-        if (i != itemCount) {
+        if (i != this.itemCount) {
             throw new IllegalStateException("MemoryIterator was not fully consumed");
         }
     }
@@ -60,11 +61,17 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     @SuppressWarnings("unchecked")
     private void allocateMemory() {
         UnsignedWord totalMemorySize = this.arrayStructSize.add(this.structSize.multiply(this.itemCount));
+
         Pointer chunk = UnmanagedMemory.calloc(totalMemorySize);
 
         this.arrayStructPointer = (A) chunk;
 
-        this.itemsPointer = chunk.add(this.arrayStructSize);
+        if(this.itemCount == 0) {
+            //System.out.println("MemoryIterator: itemCount is 0, setting itemsPointer to null");
+            this.itemsPointer = WordFactory.nullPointer();
+        } else {
+         this.itemsPointer = chunk.add(this.arrayStructSize);
+        }
     }
 
     public A finalizeArrayStruct() {

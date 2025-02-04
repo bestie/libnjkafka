@@ -2,9 +2,24 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#ifdef __linux__
+    #include <sys/syscall.h>
+    #define GETTID() ((pid_t) syscall(SYS_gettid))
+#elif __APPLE__
+    #include <pthread.h>
+    uint64_t GETTID() {
+        uint64_t tid;
+        pthread_threadid_np(NULL, &tid);
+        return (pid_t) tid;
+    }
+#endif
+
 #include "libnjkafka_structs.h"
 #include "libnjkafka_callbacks.h"
 #include "libnjkafka_core.h"
+
+#define INFO "\x1B[1;36m"
+#define RESET "\x1B[0;0m"
 
 graal_isolate_t* graalvm_isolate;
 __thread graal_isolatethread_t* graalvm_thread_isolate = NULL;
@@ -24,7 +39,8 @@ int libnjkafka_init_thread() {
         return 1;
     }
 
-    int result = graal_attach_thread(graalvm_isolate, &graalvm_thread_isolate);   
+    fprintf(stderr, "Attaching thread\n");
+    int result = graal_attach_thread(graalvm_isolate, &graalvm_thread_isolate);
     if(result != 0) {
         fprintf(stderr, "Failed to attach thread to isolate (code %d)\n", result);
     }
@@ -63,10 +79,10 @@ libnjkafka_Consumer* libnjkafka_create_consumer(libnjkafka_ConsumerConfig* confi
     return consumer;
 }
 
-int libnjkafka_consumer_subscribe(libnjkafka_Consumer* consumer, char* topic) {
+int libnjkafka_consumer_subscribe(libnjkafka_Consumer* consumer, char* topic, libnjkafka_ConsumerRebalanceListener* rebalance_listener) {
     printf("Subscribing consumer %ld to topic: %s\n", consumer->id, topic);
 
-    long result = libnjkafka_java_consumer_subscribe(graalvm_thread_isolate, consumer->id, topic);
+    long result = libnjkafka_java_consumer_subscribe(graalvm_thread_isolate, consumer->id, topic, rebalance_listener);
 
     return result;
 }
@@ -80,7 +96,8 @@ int libnjkafka_consumer_commit_all_sync(libnjkafka_Consumer* consumer, int timeo
 }
 
 libnjkafka_ConsumerRecord_List* libnjkafka_consumer_poll(libnjkafka_Consumer* consumer, int timeout_ms) {
-    printf("Polling for records\n");
+    unsigned long thread_id = GETTID();
+    printf(INFO "Polling for records on thread %ld\n" RESET, thread_id);
 
     libnjkafka_ConsumerRecord_List* records = libnjkafka_java_consumer_poll(graalvm_thread_isolate, consumer->id, timeout_ms);
 
