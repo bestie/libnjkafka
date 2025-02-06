@@ -54,7 +54,7 @@ public class RebalanceCallbackAdapter implements ConsumerRebalanceListener {
             return;
         }
 
-        callback.invoke(thread ,cPartitions);
+        callback.invoke(thread, cPartitions);
 	}
 
 	private TopicPartitionListLayout convertToCStructs(Collection<TopicPartition> partitions) {
