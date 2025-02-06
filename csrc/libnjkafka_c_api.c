@@ -2,18 +2,6 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#ifdef __linux__
-    #include <sys/syscall.h>
-    #define GETTID() ((pid_t) syscall(SYS_gettid))
-#elif __APPLE__
-    #include <pthread.h>
-    uint64_t GETTID() {
-        uint64_t tid;
-        pthread_threadid_np(NULL, &tid);
-        return (pid_t) tid;
-    }
-#endif
-
 #include "libnjkafka_structs.h"
 #include "libnjkafka_callbacks.h"
 #include "libnjkafka_core.h"
@@ -96,9 +84,6 @@ int libnjkafka_consumer_commit_all_sync(libnjkafka_Consumer* consumer, int timeo
 }
 
 libnjkafka_ConsumerRecord_List* libnjkafka_consumer_poll(libnjkafka_Consumer* consumer, int timeout_ms) {
-    unsigned long thread_id = GETTID();
-    printf(INFO "Polling for records on thread %ld\n" RESET, thread_id);
-
     libnjkafka_ConsumerRecord_List* records = libnjkafka_java_consumer_poll(graalvm_thread_isolate, consumer->id, timeout_ms);
 
     return records;
