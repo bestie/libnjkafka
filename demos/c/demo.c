@@ -46,7 +46,7 @@ void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic
 }
 void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf("👂Revoked partitions: %d\n", topic_partitions->count);
-    char event[] = "revoked";
+    char event[] = "revoked\0";
     print_partitions(event, topic_partitions);
     for(int i=0; i<topic_partitions->count; i++) {
       revoked_partitions[topic_partitions->items[i].partition] = 1;
@@ -54,7 +54,7 @@ void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_
 }
 void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf("👂Lost partitions: %d\n", topic_partitions->count);
-    char event[] = "lost";
+    char event[] = "lost\0";
     print_partitions(event, topic_partitions);
 }
 
