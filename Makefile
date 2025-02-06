@@ -102,16 +102,14 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 	$(JAVAC) -cp $(CLASSPATH) -d $(JAVA_BIN) $(JAVA_SRC)/*
 
 .PHONY: code_gen
-code_gen: $(JAVA_SRC)/StructSizeRegistry.java
+code_gen: $(BUILD_DIR)/generator
+	$(BUILD_DIR)/generator > $(JAVA_SRC)/StructSizeRegistry.java
 
 $(BUILD_DIR)/generator: src/main/java/com/zendesk/code_gen/StructRegistryGenerator.java src/main/java/com/zendesk/libnjkafka/Structs.java include/libnjkafka_structs.h
 	mkdir -p $(BUILD_DIR)
 	javac -cp $(CLASSPATH) -d $(JAVA_BIN) src/main/java/com/zendesk/code_gen/StructRegistryGenerator.java src/main/java/com/zendesk/libnjkafka/Structs.java
 	cp include/* $(BUILD_DIR)
 	$(NATIVE_IMAGE) com.zendesk.code_gen.StructRegistryGenerator $(NATIVE_IMAGE_FLAGS) -o $(BUILD_DIR)/generator
-
-$(JAVA_SRC)/StructSizeRegistry.java: $(BUILD_DIR)/generator
-	$(BUILD_DIR)/generator > $@
 
 ## Docker #####################################################################
 
