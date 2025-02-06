@@ -33,7 +33,7 @@ NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) --native-co
 # C compilation
 C_SRC = csrc
 C_SRCS = $(wildcard $(C_SRC)/*.c)
-C_FLAGS = -Wall -Werror -fPIC -g
+C_FLAGS = -Wall -Werror -std=c11 -fPIC -g
 
 # JAVA source
 JAVA_SRC = src/main/java/com/zendesk/libnjkafka
