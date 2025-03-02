@@ -1,10 +1,8 @@
 package com.zendesk.libnjkafka;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Collection;
 
 import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.c.CContext;
@@ -20,7 +18,6 @@ import org.graalvm.nativeimage.c.function.InvokeCFunctionPointer;
 import org.graalvm.word.UnsignedWord;
 
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 
 @CContext(Structs.Directives.class)
 public class Structs {
@@ -33,6 +30,35 @@ public class Structs {
                     );
 
         }
+    }
+
+    @CStruct("libnjkafka_ProducerRecord")
+    public interface ProducerRecordLayout extends PointerBase {
+
+        @CField("partition")
+        int getPartition();
+        @CField("partition")
+        void setPartition(int value);
+
+        @CField("offset")
+        long getOffset();
+        @CField("offset")
+        void setOffset(long value);
+
+        @CField("key")
+        CCharPointer getKey();
+        @CField("key")
+        void setKey(CCharPointer key);
+
+        @CField("topic")
+        CCharPointer getTopic();
+        @CField("topic")
+        void setTopic(CCharPointer topic);
+
+        @CField("value")
+        CCharPointer getValue();
+        @CField("value")
+        void setValue(CCharPointer value);
     }
 
     public interface RebalanceCallback extends CFunctionPointer {
@@ -178,6 +204,86 @@ public class Structs {
         @CField("records")
         void setRecords(PointerBase records);
     }
+
+    @CStruct("libnjkafka_ProducerConfig")
+    public interface ProducerConfigLayout extends PointerBase {
+
+        @CField("bootstrap_servers")
+        CCharPointer getBootstrapServers();
+        @CField("bootstrap_servers")
+        void setBootstrapServers(CCharPointer bootstrap_servers);
+
+        @CField("client_id")
+        void setClientId(CCharPointer client_id);
+        @CField("client_id")
+        CCharPointer getClientId();
+
+        @CField("acks")
+        int getAcks();
+        @CField("acks")
+        void setAcks(int value);
+
+        @CField("linger_ms")
+        int getLingerMs();
+        @CField("linger_ms")
+        void setLinger_ms(int value);
+
+        @CField("max_in_flight_requests_per_connection")
+        int getMaxInFlightRequestsPerConnection();
+        @CField("max_in_flight_requests_per_connection")
+        void setMaxInFlightRequestsPerConnection(int value);
+
+        @CField("retries")
+        int getRetries();
+        @CField("retries")
+        void setRetries(int value);
+
+        @CField("batch_size")
+        int getBatchSize();
+        @CField("batch_size")
+        void setBatchSize(int value);
+
+        @CField("compression_type")
+        CCharPointer getCompressionType();
+        @CField("compression_type")
+        void setCompressionType(CCharPointer value);
+
+        @CField("delivery_timeout_ms")
+        int getDeliveryTimeoutMs();
+        @CField("delivery_timeout_ms")
+        void setDeliveryTimeoutMs(int value);
+
+        @CField("enable_idempotence")
+        int getEnableIdempotence();
+        @CField("enable_idempotence")
+        void setEnableIdempotence(int value);
+
+        @CField("max_request_size")
+        int getMaxRequestSize();
+        @CField("max_request_size")
+        void setMaxRequestSize(int value);
+
+        @CField("request_timeout_ms")
+        int getRequestTimeoutMs();
+        @CField("request_timeout_ms")
+        void setRequestTimeoutMs(int value);
+
+        @CField("retry_backoff_ms")
+        int getRetryBackoffMs();
+        @CField("retry_backoff_ms")
+        void setRetryBackoffMs(int value);
+
+        @CField("metadata_max_age_ms")
+        int getMetadataMaxAgeMs();
+        @CField("metadata_max_age_ms")
+        void setMetadataMaxAgeMs(int value);
+
+        @CField("message_timeout_ms")
+        int getMessageTimeoutMs();
+        @CField("message_timeout_ms")
+        void setMessageTimeoutMs(int value);
+    }
+
 
     @CStruct("libnjkafka_ConsumerConfig")
     public interface ConsumerConfigLayout extends PointerBase {
