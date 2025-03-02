@@ -71,8 +71,8 @@ $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_AP
 		-L$(PROJECT_HOME)/$(BUILD_DIR) \
 		-lnjkafka_core
 
-.PHONY: c_api
-c_api: $(C_API_OBJECT)
+.PHONY: c-api
+c-api: $(C_API_OBJECT)
 
 $(C_API_OBJECT): $(C_API_SRC) $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS)
 	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
@@ -101,8 +101,8 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 	mkdir -p $(JAVA_BIN)
 	$(JAVAC) -cp $(CLASSPATH) -d $(JAVA_BIN) $(JAVA_SRC)/*
 
-.PHONY: code_gen
-code_gen: $(BUILD_DIR)/generator
+.PHONY: code-gen
+code-gen: $(BUILD_DIR)/generator
 	$(BUILD_DIR)/generator > $(JAVA_SRC)/StructSizeRegistry.java
 
 $(BUILD_DIR)/generator: src/main/java/com/zendesk/code_gen/StructRegistryGenerator.java src/main/java/com/zendesk/libnjkafka/Structs.java include/libnjkafka_structs.h
@@ -159,13 +159,13 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 
 ## Ruby demo ##################################################################
 
-.PHONY: ruby_clean
-ruby_clean:
+.PHONY: ruby-clean
+ruby-clean:
 	rm -f $(DEMO_DIR)/ruby/build/*
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
 
-docker_ruby_demo: ruby_clean
+docker-ruby-demo: ruby_clean
 	docker build -t libnjkafka-ruby-demo -f Dockerfile.ruby .
 	docker run \
 		--rm \
@@ -176,12 +176,12 @@ docker_ruby_demo: ruby_clean
 		libnjkafka-ruby-demo \
 		make ruby_demo
 
-.PHONY: ruby_demo
-ruby_demo: $(RUBY_C_EXT_BUNDLE)
+.PHONY: ruby-demo
+ruby-demo: $(RUBY_C_EXT_BUNDLE)
 	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby --disable=gems demo.rb
 
-.PHONY: ruby_c_ext
-ruby_c_ext: $(RUBY_C_EXT_BUNDLE)
+.PHONY: ruby-c-ext
+ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
 $(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
@@ -191,8 +191,8 @@ $(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafk
 		install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle; \
 	fi
 
-.PHONY: ruby_make_file
-ruby_make_file: $(DEMO_DIR)/ruby/build/Makefile
+.PHONY: ruby-make-file
+ruby-make-file: $(DEMO_DIR)/ruby/build/Makefile
 
 $(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
 	mkdir -p $(DEMO_DIR)/ruby/build
@@ -205,8 +205,8 @@ $(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
 DEMO_C_LIBS = -L $(BUILD_DIR) -l njkafka
 C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 
-.PHONY: c_demo
-c_demo: $(C_EXECUTABLE)
+.PHONY: c-demo
+c-demo: $(C_EXECUTABLE)
 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
 
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
@@ -233,8 +233,8 @@ clean:
 .PHONY: topic
 topic: $(BUILD_BASE_DIR)/.topic
 
-.PHONY: clean_topic
-clean_topic:
+.PHONY: clean-topic
+clean-topic:
 	$(KAFKA_HOME)/bin/kafka-topics.sh --bootstrap-server $(KAFKA_BROKERS) --delete --topic $(KAFKA_TOPIC) && rm -f $(BUILD_BASE_DIR)/.topic
 
 $(BUILD_BASE_DIR)/.topic:
@@ -243,8 +243,8 @@ $(BUILD_BASE_DIR)/.topic:
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) \
 	bash ./scripts/publish_messages.sh && touch $(BUILD_BASE_DIR)/.topic
 
-.PHONY: check_symbols
-check_symbols:
+.PHONY: check-symbols
+check-symbols:
 	nm -gU $(BUILD_DIR)/libnjkafka.$(LIB_EXT) | grep libnjkafka
 
 .PHONY: jdeps
