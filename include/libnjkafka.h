@@ -19,4 +19,7 @@ int libnjkafka_consumer_subscribe(libnjkafka_Consumer* consumer, char* topic, li
 int libnjkafka_consumer_commit_all_sync(libnjkafka_Consumer* consumer, int timeout_ms);
 int libnjkafka_consumer_close(libnjkafka_Consumer* consumer);
 
+libnjkafka_Producer* libnjkafka_create_producer(libnjkafka_ProducerConfig* config);
+int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerRecord* record);
+int libnjkafka_producer_close(libnjkafka_Producer* producer);
 #endif

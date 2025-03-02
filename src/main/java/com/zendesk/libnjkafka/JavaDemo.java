@@ -12,6 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 
 public class JavaDemo {
@@ -21,8 +22,13 @@ public class JavaDemo {
         System.out.println("Starting Java consumer demo.");
         System.out.println("This is mainly used for generating a dependency config for the native image.");
 
-        ConsumerProxy consumer = consumer();
         String topicName = System.getenv("KAFKA_TOPIC");
+
+        ProducerProxy producer = producer();
+
+        send_messages(producer, topicName);
+
+        ConsumerProxy consumer = consumer();
         topics = List.of(topicName);
 
         consumer.subscribe(topics, new ConsumerRebalanceListener() {
@@ -44,6 +50,24 @@ public class JavaDemo {
         checkCommittedOffsets(consumer);
 
         System.out.println("Done");
+    }
+
+    private static void send_messages(ProducerProxy producer, String topic) {
+        for (int i = 0; i < 120; i++) {
+		    String key = Integer.toString(i);
+		    String value = "message-" + i;
+		    int partition = i % 12;
+		    ProducerRecord<String, String> record = new ProducerRecord<>(topic, partition, key, value);
+		    System.out.println("Sending message: " + record);
+		    producer.send(record);
+		}
+    }
+
+    private static ProducerProxy producer() { 
+        Properties props = new Properties();
+        props.setProperty("bootstrap.servers", System.getenv("KAFKA_BROKERS"));
+        ProducerProxy producer = ProducerProxy.create(props);
+        return producer;
     }
 
     private static ConsumerProxy consumer() {

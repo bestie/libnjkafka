@@ -5,19 +5,24 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Map;
+import java.util.concurrent.Future;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
 
-import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
+import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordListLayout;
+import com.zendesk.libnjkafka.Structs.ProducerConfigLayout;
+import com.zendesk.libnjkafka.Structs.ProducerRecordLayout;
 import com.zendesk.libnjkafka.Structs.RebalanceListenerStruct;
 import com.zendesk.libnjkafka.Structs.TopicPartitionLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionListLayout;
@@ -26,6 +31,58 @@ import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataListLayout;
 
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
+    public static ProducerRegistry producerRegistry = new ProducerRegistry();
+
+    @CEntryPoint(name = "libnjkafka_java_create_producer")
+    public static long createProducer(IsolateThread thread, ProducerConfigLayout cConfig) {
+        try {
+            Properties config = configToProps(cConfig);
+            ProducerProxy producer = ProducerProxy.create(config);
+            long producerId = producerRegistry.add(producer);
+            return producerId;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return (long) -1;
+        }
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_producer_send")
+    public static int producerSend(IsolateThread thread, long producerID, ProducerRecordLayout cRecord) {
+        try {
+            ProducerProxy producer = producerRegistry.get(producerID);
+            ProducerRecord<String, String> record = cToJava(cRecord);
+            System.out.println("EntryPoints: sending message=" + record.value() + ",partition=" + record.partition());
+            Future<RecordMetadata> futureMetadata = producer.send(record);
+            futureMetadata.get();
+            return 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_producer_close")
+    public static int producerSend(IsolateThread thread, long producerID) {
+        try {
+            ProducerProxy producer = producerRegistry.get(producerID);
+            producer.close();
+            return 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+	private static ProducerRecord<String, String> cToJava(ProducerRecordLayout cRecord) {
+		ProducerRecord<String, String> record = new ProducerRecord<>(
+		    CTypeConversion.toJavaString(cRecord.getTopic()),
+		    cRecord.getPartition(),
+		    CTypeConversion.toJavaString(cRecord.getKey()),
+		    CTypeConversion.toJavaString(cRecord.getValue())
+		);
+		return record;
+	}
+
 
     @CEntryPoint(name = "libnjkafka_java_create_consumer")
     public static long createConsumer(IsolateThread thread, ConsumerConfigLayout cConfig) {
@@ -164,6 +221,27 @@ public class Entrypoints {
         } catch (Exception e) {
             return -1;
         }
+    }
+
+    public static Properties configToProps(ProducerConfigLayout config) {
+        Properties props = new Properties();
+        setProperty(props, "bootstrap.servers", config.getBootstrapServers());
+        setProperty(props, "client.id", config.getClientId());
+        setProperty(props, "acks", String.valueOf(config.getAcks()));
+        setProperty(props, "linger_ms", String.valueOf(config.getLingerMs()));
+        setProperty(props, "max_in_flight_requests_per_connection", String.valueOf(config.getMaxInFlightRequestsPerConnection()));
+        setProperty(props, "retries", String.valueOf(config.getRetries()));
+        setProperty(props, "batch_size", String.valueOf(config.getBatchSize()));
+        setProperty(props, "compression_type", config.getCompressionType());
+        setProperty(props, "delivery_timeout_ms", String.valueOf(config.getDeliveryTimeoutMs()));
+        setProperty(props, "enable_idempotence", String.valueOf(config.getEnableIdempotence()));
+        setProperty(props, "max_request_size", String.valueOf(config.getMaxRequestSize()));
+        setProperty(props, "request_timeout_ms", String.valueOf(config.getRequestTimeoutMs()));
+        setProperty(props, "retry_backoff_ms", String.valueOf(config.getRetryBackoffMs()));
+        setProperty(props, "metadata_max_age_ms", String.valueOf(config.getMetadataMaxAgeMs()));
+        setProperty(props, "message_timeout_ms", String.valueOf(config.getMessageTimeoutMs()));
+
+        return props;
     }
 
     public static Properties configToProps(ConsumerConfigLayout config) {

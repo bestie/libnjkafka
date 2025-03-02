@@ -13,11 +13,13 @@
 
 #define DEFAULT_PARTITIONS 12
 #define DEFAULT_EXPECTED_MESSAGE_COUNT 120
-#define DEFAULT_MESSAGES_PER_PARTITIONS 10
+#define DEFAULT_MESSAGES_PER_PARTITION 10
 
 #define RED   "\x1B[31m"
 #define GREEN "\x1B[32m"
 #define RESET "\x1B[0m"
+
+libnjkafka_Producer* producer;
 
 int print_message(libnjkafka_ConsumerRecord record, void* opaque) {
     printf("Message partition %d, offset %ld, key %s, value `%s`\n", record.partition, record.offset, record.key, record.value);
@@ -52,6 +54,7 @@ void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_
       revoked_partitions[topic_partitions->items[i].partition] = 1;
     }
 }
+
 void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf("👂Lost partitions: %d\n", topic_partitions->count);
     char event[] = "lost\0";
@@ -103,7 +106,6 @@ void consumer_poll(libnjkafka_Consumer* consumer) {
       printf(" 🧵 thread-%d Consumer#assigned partitions: %d\n", thread_n, topic_partitions->count);
       free(topic_partitions);
       libnjkafka_consumer_commit_all_sync(consumer, 1000);
-      // sleep 500ms
       usleep(500000);
     }
 
@@ -111,6 +113,45 @@ void consumer_poll(libnjkafka_Consumer* consumer) {
     libnjkafka_consumer_close(consumer);
     printf(" 🧵 thread-%d  Tearing down thread\n", thread_n);
     libnjkafka_teardown_thread();
+}
+
+libnjkafka_ProducerConfig* create_producer_config() {
+    libnjkafka_ProducerConfig* config = (libnjkafka_ProducerConfig*)malloc(sizeof(libnjkafka_ProducerConfig));
+    config->bootstrap_servers = strdup("localhost:9092");
+    config->client_id = strdup("libnjkafka-c-test-producer");
+    config->acks = 1;
+    config->linger_ms = 0;
+    config->max_in_flight_requests_per_connection = 5;
+    config->retries = 0;
+    config->batch_size = 16384;
+    config->compression_type = strdup("none");
+    config->delivery_timeout_ms = 30000;
+    config->enable_idempotence = 0;
+    config->max_request_size = 1048576;
+    config->request_timeout_ms = 30000;
+    config->retry_backoff_ms = 100;
+    config->metadata_max_age_ms = 300000;
+    config->message_timeout_ms = 300000;
+    return config;
+}
+
+void produce_message(libnjkafka_Producer* producer, char* topic, char* key, char* message, int partition) {
+    libnjkafka_ProducerRecord* record = (libnjkafka_ProducerRecord*)malloc(sizeof(libnjkafka_ProducerRecord));
+    record->topic = topic;
+    record->key = key;
+    record->value = message;
+    record->partition = partition;
+    free(record);
+}
+
+void produce_messages(libnjkafka_Producer* producer, char* topic, int partitions, int total_messages) {
+    for(int i = 0; i < total_messages; i++) {
+        int partition = i % partitions;
+        char message[100];
+        snprintf(message, 100, "Message %d published to partition %d\n", i, partition);
+        produce_message(producer, topic, "", message, partition);
+    }
+    free(topic);
 }
 
 int main() {
@@ -131,6 +172,13 @@ int main() {
       printf("KAFKA_BROKERS env variable not set");
       exit(1);
     }
+
+    libnjkafka_ProducerConfig* producer_config = create_producer_config();
+    producer_config->bootstrap_servers = strdup(kafka_brokers);
+    producer_config->client_id = strdup("libnjkafka-c-test-producer");
+    producer = libnjkafka_create_producer(producer_config);
+    produce_messages(producer, strdup(kafka_topic), DEFAULT_PARTITIONS, DEFAULT_EXPECTED_MESSAGE_COUNT);
+    libnjkafka_producer_close(producer);
 
     libnjkafka_ConsumerConfig* config = (libnjkafka_ConsumerConfig*)malloc(sizeof(libnjkafka_ConsumerConfig));
     config->auto_commit_interval_ms = 5000;
@@ -185,6 +233,7 @@ int main() {
       for(int i = 0; i < record_list->count; i++) {
           libnjkafka_ConsumerRecord record = record_list->records[i];
           printf("Message partition %d, offset %ld, key %s, value `%s`\n", record.partition, record.offset, record.key, record.value);
+          printf(" processed: partition %d, offset %ld, key %s, value `%s`\n", record.partition, record.offset, record.key, record.value);
           processed_messages++;
       }
 
@@ -226,17 +275,23 @@ int main() {
     libnjkafka_TopicPartitionOffsetAndMetadata_List* offsets = libnjkafka_consumer_committed(consumer, topic_partitions, 1000);
     free(topic_partitions);
 
-    printf("C-side Got %d offsets \n", offsets->count);
     if(offsets->count == DEFAULT_PARTITIONS) {
       printf(GREEN "libnjkafka_consumer_assignment returned %d assiged partitions:\n" RESET, offsets->count);
 
       for(int i = 0; i < offsets->count; i++) {
           libnjkafka_TopicPartitionOffsetAndMetadata offset = offsets->items[i];
+
           if(strcmp(offset.topic, kafka_topic) != 0) {
             printf(RED "libnjkafka_consumer_committed Error: Expected topic %s, got %s\n" RESET, kafka_topic, offset.topic);
             exit(1);
           }
-          printf("  committed offset for topic %s partition %d: %ld\n", offset.topic, offset.partition, offset.offset);
+
+          if(offset.offset == DEFAULT_MESSAGES_PER_PARTITION) {
+              printf(GREEN "  committed offset for topic %s partition %d: %ld\n" RESET, offset.topic, offset.partition, offset.offset);
+          } else {
+              printf(RED "  committed offset for topic %s partition %d: %ld\n" RESET, offset.topic, offset.partition, offset.offset);
+              exit(1);
+          }
       }
     } else {
       printf(RED "libnjkafka_consumer_assignment Error: Expected %d, got %d\n" RESET, DEFAULT_PARTITIONS, offsets->count);

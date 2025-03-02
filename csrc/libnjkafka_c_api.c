@@ -57,6 +57,30 @@ int libnjkafka_teardown() {
     return result;
 }
 
+libnjkafka_Producer* libnjkafka_create_producer(libnjkafka_ProducerConfig* config) {
+    printf("Creating consumer with config\n");
+
+    long producer_id = libnjkafka_java_create_producer(graalvm_thread_isolate, config);
+
+    libnjkafka_Producer* producer = (libnjkafka_Producer*) malloc(sizeof(libnjkafka_Producer));
+    producer->id = producer_id;
+    return producer;
+}
+
+int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerRecord* record) {
+    printf("C-API: Sending record to producer %ld, topic=%s,message=%s,partition=%d\n", producer->id, record->topic, record->value, record->partition);
+
+    long result = libnjkafka_java_producer_send(graalvm_thread_isolate, producer->id, record);
+
+    return result;
+}
+
+int libnjkafka_producer_close(libnjkafka_Producer* producer) {
+    long result = libnjkafka_java_producer_close(graalvm_thread_isolate, producer->id);
+
+    return result;
+}
+
 libnjkafka_Consumer* libnjkafka_create_consumer(libnjkafka_ConsumerConfig* config) {
     printf("Creating consumer with config\n");
 
@@ -143,4 +167,37 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
     free(consumer);
 
     return result;
+}
+
+void libnjkafka_free_ConsumerRecord(libnjkafka_ConsumerRecord* record) {
+  /*free(record->key);*/
+  /*free(record->topic);*/
+  /*free(record->value);*/
+  /*free(record);*/
+}
+
+void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list) {
+  for(int i = 0; i < list->count; i++) {
+    libnjkafka_free_ConsumerRecord(&list->records[i]);
+  }
+  free(list);
+}
+
+void libnjkafka_free_ProducerRecord(libnjkafka_ProducerRecord* record) {
+  free(record->key);
+  free(record->topic);
+  free(record->value);
+  free(record);
+}
+
+
+void libnjkafka_free_TopicPartition(libnjkafka_TopicPartition* tp) {
+  /*free(tp->topic);*/
+}
+
+void libnjkafka_free_TopicPartition_List(libnjkafka_TopicPartition_List* list) {
+  for(int i = 0; i < list->count; i++) {
+    libnjkafka_free_TopicPartition(&list->items[i]);
+  }
+  free(list);
 }

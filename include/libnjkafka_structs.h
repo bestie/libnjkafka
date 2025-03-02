@@ -25,6 +25,10 @@ typedef struct {
 
 typedef struct {
     long id;
+} libnjkafka_Producer;
+
+typedef struct {
+    long id;
 } libnjkafka_Consumer;
 
 typedef struct {
@@ -40,6 +44,32 @@ typedef struct {
     int count;
     libnjkafka_ConsumerRecord* records;
 } libnjkafka_ConsumerRecord_List;
+
+typedef struct {
+    int partition;
+    long offset;
+    char* key;
+    char* topic;
+    char* value;
+} libnjkafka_ProducerRecord;
+
+typedef struct {
+    char* bootstrap_servers;
+    char* client_id;
+    int acks;
+    int linger_ms;
+    int max_in_flight_requests_per_connection;
+    int retries;
+    int batch_size;
+    char* compression_type;
+    int delivery_timeout_ms;
+    int enable_idempotence;
+    int max_request_size;
+    int request_timeout_ms;
+    int retry_backoff_ms;
+    int metadata_max_age_ms;
+    int message_timeout_ms;
+} libnjkafka_ProducerConfig;
 
 typedef struct {
     int auto_commit_interval_ms;
