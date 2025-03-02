@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Check if the required environment variables are set
+if [ -z "$KAFKA_BROKERS" ] || [ -z "$KAFKA_TOPIC" ]; then
+  echo "Environment variables KAFKA_BROKERS and KAFKA_TOPIC must be set."
+  exit 1
+fi
+
+create_topic() {
+  # Create the Kafka topic if it doesn't already exist
+  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" \
+    --create \
+    --topic "$KAFKA_TOPIC" \
+    --partitions=12 \
+    --replication-factor=1
+}
+
+# Function to create and clear the Kafka topic
+clear_topic() {
+  # Delete all messages from the Kafka topic by setting retention to 0
+  kafka-configs.sh --bootstrap-server "$KAFKA_BROKERS" \
+    --entity-type topics --entity-name "$KAFKA_TOPIC" \
+    --alter --add-config retention.ms=0
+
+  # Wait briefly to ensure messages are deleted
+  sleep 0,5
+
+  # Reset the retention to a default value (e.g., 7 days)
+  kafka-configs.sh --bootstrap-server "$KAFKA_BROKERS" \
+    --entity-type topics --entity-name "$KAFKA_TOPIC" \
+    --alter --delete-config retention.ms
+
+  echo "Kafka topic '$KAFKA_TOPIC' cleared of all messages."
+}
+
+# Function to delete the Kafka topic
+delete_topic() {
+  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" --delete --topic "$KAFKA_TOPIC"
+  echo "Kafka topic '$KAFKA_TOPIC' has been deleted."
+}
+
+prepare() {
+  delete_topic
+  create_topic
+}
+
+# Parse subcommands
+case "$1" in
+  create)
+    create_topic
+    ;;
+  clear_topic)
+    clear_topic
+    ;;
+  delete)
+    delete_topic
+    ;;
+  prepare)
+    prepare
+    ;;
+  *)
+    echo "Usage: $0 {create|prepare|delete}"
+    exit 1
+    ;;
+esac

@@ -88,9 +88,12 @@ $(GRAALVM_NATIVE_OBJECT): $(GRAALVM_DEPENDENCY_METADATA) $(STRUCT_DEFINITIONS)
 	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
 
 .PHONY: java-demo
-java-demo: $(GRAALVM_DEPENDENCY_METADATA)
+java-demo: java
+	./scripts/topic prepare
+	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) java -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
 
-$(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS) $(BUILD_BASE_DIR)/.topic
+$(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
+	./scripts/topic prepare
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) timeout 10 java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
 
@@ -207,6 +210,7 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
+	./scripts/topic prepare
 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
 
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
@@ -230,18 +234,13 @@ clean:
 	rm -f *.json
 	rm -f $(BUILD_BASE_DIR)/.docker_build
 
-.PHONY: topic
-topic: $(BUILD_BASE_DIR)/.topic
+.PHONY: topic-create
+topic-create:
+	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic create
 
-.PHONY: clean-topic
-clean-topic:
-	$(KAFKA_HOME)/bin/kafka-topics.sh --bootstrap-server $(KAFKA_BROKERS) --delete --topic $(KAFKA_TOPIC) && rm -f $(BUILD_BASE_DIR)/.topic
-
-$(BUILD_BASE_DIR)/.topic:
-	mkdir -p $(BUILD_BASE_DIR)
-	$(KAFKA_HOME)/bin/kafka-topics.sh --bootstrap-server $(KAFKA_BROKERS) --create --partitions=12 --topic $(KAFKA_TOPIC) && \
-	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) \
-	bash ./scripts/publish_messages.sh && touch $(BUILD_BASE_DIR)/.topic
+.PHONY: topic-delete
+topic-delete:
+	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic delete
 
 .PHONY: check-symbols
 check-symbols:
