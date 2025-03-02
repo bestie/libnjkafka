@@ -57,6 +57,10 @@ int libnjkafka_teardown() {
     return result;
 }
 
+void libnjkafka_free(void* pointer) {
+    libnjkafka_java_free_unmanaged_memory(graalvm_thread_isolate, pointer);
+}
+
 libnjkafka_Producer* libnjkafka_create_producer(libnjkafka_ProducerConfig* config) {
     printf("Creating consumer with config\n");
 
@@ -77,6 +81,7 @@ int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerR
 
 int libnjkafka_producer_close(libnjkafka_Producer* producer) {
     long result = libnjkafka_java_producer_close(graalvm_thread_isolate, producer->id);
+    free(producer);
 
     return result;
 }
@@ -169,35 +174,21 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
     return result;
 }
 
-void libnjkafka_free_ConsumerRecord(libnjkafka_ConsumerRecord* record) {
-  /*free(record->key);*/
-  /*free(record->topic);*/
-  /*free(record->value);*/
-  /*free(record);*/
-}
-
 void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list) {
-  for(int i = 0; i < list->count; i++) {
-    libnjkafka_free_ConsumerRecord(&list->records[i]);
-  }
-  free(list);
+    libnjkafka_free(list);
 }
 
 void libnjkafka_free_ProducerRecord(libnjkafka_ProducerRecord* record) {
-  free(record->key);
-  free(record->topic);
-  free(record->value);
-  free(record);
-}
-
-
-void libnjkafka_free_TopicPartition(libnjkafka_TopicPartition* tp) {
-  /*free(tp->topic);*/
+    libnjkafka_free(record->key);
+    libnjkafka_free(record->topic);
+    libnjkafka_free(record->value);
+    libnjkafka_free(record);
 }
 
 void libnjkafka_free_TopicPartition_List(libnjkafka_TopicPartition_List* list) {
-  for(int i = 0; i < list->count; i++) {
-    libnjkafka_free_TopicPartition(&list->items[i]);
-  }
-  free(list);
+    libnjkafka_free(list);
+}
+
+void libnjkafka_free_TopicPartitionOffsetAndMetadata_List(libnjkafka_TopicPartitionOffsetAndMetadata_List* list) {
+    libnjkafka_free(list);
 }

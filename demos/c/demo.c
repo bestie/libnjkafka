@@ -100,11 +100,10 @@ void consumer_poll(libnjkafka_Consumer* consumer) {
       printf(" 🧵 thread-%d Polling for records in thread\n", thread_n);
       libnjkafka_ConsumerRecord_List* record_list = libnjkafka_consumer_poll(consumer, 1000);
       printf(" 🧵 thread-%d Got %d records\n", thread_n, record_list->count);
-      free(record_list);
+      libnjkafka_free_ConsumerRecord_List(record_list);
 
       libnjkafka_TopicPartition_List* topic_partitions = libnjkafka_consumer_assignment(consumer);
       printf(" 🧵 thread-%d Consumer#assigned partitions: %d\n", thread_n, topic_partitions->count);
-      free(topic_partitions);
       libnjkafka_consumer_commit_all_sync(consumer, 1000);
       usleep(500000);
     }
@@ -141,6 +140,8 @@ void produce_message(libnjkafka_Producer* producer, char* topic, char* key, char
     record->key = key;
     record->value = message;
     record->partition = partition;
+
+    libnjkafka_producer_send(producer, record);
     free(record);
 }
 
@@ -216,7 +217,7 @@ int main() {
     libnjkafka_TopicPartition_List* topic_partitions;
     topic_partitions = libnjkafka_consumer_assignment(consumer);
     printf("  Consumer#assigned partitions: %d\n", topic_partitions->count);
-    free(topic_partitions);
+    libnjkafka_free_TopicPartition_List(topic_partitions);
 
     while(processed_messages < DEFAULT_EXPECTED_MESSAGE_COUNT && attempts < max_attempts) {
       attempts++;
@@ -237,7 +238,7 @@ int main() {
           processed_messages++;
       }
 
-      free(record_list);
+      libnjkafka_free_ConsumerRecord_List(record_list);
     }
 
     topic_partitions = libnjkafka_consumer_assignment(consumer);
@@ -273,7 +274,7 @@ int main() {
     libnjkafka_consumer_commit_all_sync(consumer, 1000);
 
     libnjkafka_TopicPartitionOffsetAndMetadata_List* offsets = libnjkafka_consumer_committed(consumer, topic_partitions, 1000);
-    free(topic_partitions);
+    libnjkafka_free_TopicPartition_List(topic_partitions);
 
     if(offsets->count == DEFAULT_PARTITIONS) {
       printf(GREEN "libnjkafka_consumer_assignment returned %d assiged partitions:\n" RESET, offsets->count);
@@ -298,7 +299,7 @@ int main() {
       exit(1);
     }
 
-    free(offsets);
+    libnjkafka_free_TopicPartitionOffsetAndMetadata_List(offsets);
 
     libnjkafka_consumer_close(consumer);
     ensure_partitions_revoked_callback_called();

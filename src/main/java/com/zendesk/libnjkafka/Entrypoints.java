@@ -14,9 +14,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.graalvm.nativeimage.IsolateThread;
+import org.graalvm.nativeimage.UnmanagedMemory;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
+import org.graalvm.word.PointerBase;
 
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
@@ -221,6 +223,11 @@ public class Entrypoints {
         } catch (Exception e) {
             return -1;
         }
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_free_unmanaged_memory")
+    public static void freeUnmanagedMemory(IsolateThread thread, PointerBase pointer) {
+        UnmanagedMemory.free(pointer);
     }
 
     public static Properties configToProps(ProducerConfigLayout config) {

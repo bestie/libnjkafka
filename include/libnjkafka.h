@@ -22,4 +22,11 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer);
 libnjkafka_Producer* libnjkafka_create_producer(libnjkafka_ProducerConfig* config);
 int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerRecord* record);
 int libnjkafka_producer_close(libnjkafka_Producer* producer);
+
+void libnjkafka_free(void* pointer);
+void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list);
+void libnjkafka_free_ProducerRecord(libnjkafka_ProducerRecord* record);
+void libnjkafka_free_TopicPartition_List(libnjkafka_TopicPartition_List* list);
+void libnjkafka_free_TopicPartitionOffsetAndMetadata_List(libnjkafka_TopicPartitionOffsetAndMetadata_List* list);
+
 #endif
