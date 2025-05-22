@@ -168,7 +168,7 @@ ruby-clean:
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
 
-docker-ruby-demo: ruby_clean
+docker-ruby-demo:
 	docker build -t libnjkafka-ruby-demo -f Dockerfile.ruby .
 	docker run \
 		--rm \
@@ -186,7 +186,7 @@ ruby-demo: $(RUBY_C_EXT_BUNDLE)
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
+$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c $(C_API_OBJECT) $(SHARED_LIBRARY_OBJECT)
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
 	if [ "$(OS)" = "Darwin" ]; then \
