@@ -69,7 +69,7 @@ static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic) {
         rb_raise(rb_eRuntimeError, "Invalid topic string");
     }
 
-    int result = libnjkafka_consumer_subscribe(consumer->consumer_ref, c_kafka_topic);
+    int result = libnjkafka_consumer_subscribe(consumer->consumer_ref, c_kafka_topic, libnjkafka_null_rebalance_listener());
     if (result != 0) {
         rb_raise(rb_eRuntimeError, "Failed to subscribe to Kafka topic");
     }

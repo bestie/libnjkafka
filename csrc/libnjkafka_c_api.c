@@ -165,6 +165,17 @@ libnjkafka_TopicPartitionOffsetAndMetadata_List* libnjkafka_consumer_committed(l
     return offsets;
 }
 
+void null_rebalance_callback(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) { }
+
+libnjkafka_ConsumerRebalanceListener* libnkafka_null_rebalance_listener() {
+    libnjkafka_ConsumerRebalanceListener* rebalance_listener = malloc(sizeof(libnjkafka_ConsumerRebalanceListener));
+    rebalance_listener->on_partitions_assigned = (libnjkafka_ConsumerRebalanceCallback)&null_rebalance_callback;
+    rebalance_listener->on_partitions_revoked = (libnjkafka_ConsumerRebalanceCallback)&null_rebalance_callback;
+    rebalance_listener->on_partitions_lost = (libnjkafka_ConsumerRebalanceCallback)&null_rebalance_callback;
+
+    return rebalance_listener;
+}
+
 int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
     printf("Closing consumer\n");
 
