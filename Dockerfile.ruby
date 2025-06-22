@@ -1,4 +1,4 @@
-FROM ruby:3.3.6-bookworm
+FROM ruby:3.4.4-bookworm
 
 RUN apt update && apt install -y time
 

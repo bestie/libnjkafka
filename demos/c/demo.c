@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -40,7 +42,7 @@ void print_partitions(char event[8], libnjkafka_TopicPartition_List* topic_parti
 }
 void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf(" CCCCCCCCCCCCCCCC   Assigned partitions: %d\n", topic_partitions->count);
-    char event[] = "assigned";
+    char event[8] = "assigned";
     print_partitions(event, topic_partitions);
     for(int i=0; i<topic_partitions->count; i++) {
       assigned_partitions[topic_partitions->items[i].partition] = 1;
@@ -48,7 +50,7 @@ void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic
 }
 void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf("👂Revoked partitions: %d\n", topic_partitions->count);
-    char event[] = "revoked\0";
+    char event[8] = "revoked";
     print_partitions(event, topic_partitions);
     for(int i=0; i<topic_partitions->count; i++) {
       revoked_partitions[topic_partitions->items[i].partition] = 1;
@@ -57,7 +59,7 @@ void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_
 
 void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
     printf("👂Lost partitions: %d\n", topic_partitions->count);
-    char event[] = "lost\0";
+    char event[8] = "lost";
     print_partitions(event, topic_partitions);
 }
 

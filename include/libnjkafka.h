@@ -1,4 +1,4 @@
-#ifndef LIBNJKAFKA_STRUCTS_H
+#ifndef LIBNJKAFKA_H
 #define LIBNJKAFKA_H
 
 #include <libnjkafka_structs.h>
