@@ -122,39 +122,33 @@ DOCKER_PROJECT_HOME = /libnjkafka
 .PHONY: docker-build
 docker-build: build/.docker_build
 
+build/scripts/docker-run: Makefile
+	@mkdir -p build/scripts
+	@echo '#!/usr/bin/env sh' > $@
+	@echo 'docker run \\' >> $@
+	@echo '  --rm \\' >> $@
+	@echo '  --network=host \\' >> $@
+	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
+	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
+	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
+	@echo '  $(DOCKER_TAG) "$$@"' >> $@
+	@chmod +x $@
+
 build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
 	mkdir -p $(BUILD_BASE_DIR)
 	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
 .PHONY: docker-make
-docker-make: docker-build
-	docker run \
-		--rm \
-		--network=host \
-		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME):/libnjkafka \
-		$(DOCKER_TAG) \
-		make
+docker-make: build/scripts/docker-run
+	./build/scripts/docker-run make
 
 .PHONY: docker-demos
-docker-demos: docker-build
-	docker run \
-		--rm \
-		--network=host \
-		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME):/libnjkafka \
-		$(DOCKER_TAG) \
-		make c_demo
+docker-demos: build/scripts/docker-run
+	./build/scripts/docker-run make c-demo
 
 .PHONY: docker-bash
-docker-bash: docker-build
-	docker run \
-		--rm --interactive --tty \
-		--network=host \
-		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME):$(DOCKER_PROJECT_HOME) \
-		$(DOCKER_TAG) \
-		/bin/bash -l
+docker-bash: build/scripts/docker-run
+	./build/scripts/docker-run bash
 
 ## Demos ######################################################################
 
@@ -167,17 +161,25 @@ ruby-clean:
 	rm -f $(DEMO_DIR)/ruby/build/*
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
+RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
+RUBY_DOCKER_TAG = libnjkafka-ruby-demo
 
-docker-ruby-demo:
-	docker build -t libnjkafka-ruby-demo -f Dockerfile.ruby .
-	docker run \
-		--rm \
-		--interactive --tty \
-		--network=host \
-		-e KAFKA_BROKERS=host.docker.internal:9092 \
-		-v $(PROJECT_HOME):/libnjkafka \
-		libnjkafka-ruby-demo \
-		make ruby_demo
+$(RUBY_DOCKER_SCRIPT): Makefile
+	@mkdir -p build/scripts
+	@echo '#!/usr/bin/env sh' > $@
+	@echo 'docker run \\' >> $@
+	@echo '  --rm \\' >> $@
+	@echo '  --interactive --tty \\' >> $@
+	@echo '  --network=host \\' >> $@
+	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
+	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
+	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
+	@echo '  $(RUBY_DOCKER_TAG) "$$@"' >> $@
+	@chmod +x $@
+
+docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
+	docker build -t $(RUBY_DOCKER_TAG) -f Dockerfile.ruby .
+	$(RUBY_DOCKER_SCRIPT) make ruby-demo
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
@@ -186,7 +188,7 @@ ruby-demo: $(RUBY_C_EXT_BUNDLE)
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c $(C_API_OBJECT) $(SHARED_LIBRARY_OBJECT)
+$(RUBY_C_EXT_BUNDLE): ruby-clean $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
 	if [ "$(OS)" = "Darwin" ]; then \
