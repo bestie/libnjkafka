@@ -1,15 +1,17 @@
 OS := $(shell uname -s)
 PLATFORM := $(shell uname -m)
 ifeq ($(OS),Linux)
-    LIB_EXT = so
-    CC ?= gcc
-    PLATFORM_NATIVE_IMAGE_FLAGS = ""
+	LIB_EXT = so
+	CC ?= gcc
+	PLATFORM_NATIVE_IMAGE_FLAGS = ""
+	EXTRA_C_FLAGS=""
 endif
 ifeq ($(OS),Darwin)
-    LIB_EXT = dylib
-    CC ?= clang
-    # Only macOS gets fast builds, don't @ me.
-    PLATFORM_NATIVE_IMAGE_FLAGS = "-Ob"
+	LIB_EXT = dylib
+	CC ?= clang
+	# Only macOS gets fast builds, don't @ me.
+	PLATFORM_NATIVE_IMAGE_FLAGS = "-Ob"
+	# EXTRA_LD_FLAGS="-Wl,-install_name,@rpath/libnjkafka.dylib"
 endif
 
 GRAALVM_HOME ?=
@@ -33,7 +35,7 @@ NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) --native-co
 # C compilation
 C_SRC = csrc
 C_SRCS = $(wildcard $(C_SRC)/*.c)
-C_FLAGS = -Wall -Werror -std=c11 -fPIC -g
+C_FLAGS = -Wall -Werror -std=c11 -fPIC -g $(EXTRA_C_FLAGS)
 
 # JAVA source
 JAVA_SRC = src/main/java/com/zendesk/libnjkafka
@@ -68,6 +70,7 @@ lib: $(SHARED_LIBRARY_OBJECT)
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
 	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
+		-Wl,-install_name,@rpath/libnjkafka.dylib \
 		-L$(PROJECT_HOME)/$(BUILD_DIR) \
 		-lnjkafka_core
 
@@ -191,10 +194,10 @@ ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 $(RUBY_C_EXT_BUNDLE): ruby-clean $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
-	if [ "$(OS)" = "Darwin" ]; then \
-		install_name_tool -change $(SHARED_LIBRARY_OBJECT) @rpath/libnjkafka.dylib $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle; \
-		install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle; \
-	fi
+	# if [ "$(OS)" = "Darwin" ]; then \
+		# install_name_tool -change $(SHARED_LIBRARY_OBJECT) @rpath/libnjkafka.dylib $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
+		# install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
+	# fi
 
 .PHONY: ruby-make-file
 ruby-make-file: $(DEMO_DIR)/ruby/build/Makefile
