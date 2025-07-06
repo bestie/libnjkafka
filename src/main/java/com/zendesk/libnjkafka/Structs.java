@@ -415,4 +415,19 @@ public class Structs {
 
         return javaSet;
     }
+
+    public static TopicPartitionListLayout toCStruct(Set<TopicPartition> topicPartitions) {
+         return MemoryIterator.allocateAndPopulateStructArray(
+                topicPartitions.size(),
+                TopicPartitionListLayout.class,
+                TopicPartitionLayout.class,
+                iterator -> {
+                    for (TopicPartition topicPartition : topicPartitions) {
+                        TopicPartitionLayout cPartition = iterator.next();
+                        cPartition.setPartition(topicPartition.partition());
+                        cPartition.setTopic(CTypeConversion.toCString(topicPartition.topic()).get());
+                    }
+                }
+                );
+	}
 }
