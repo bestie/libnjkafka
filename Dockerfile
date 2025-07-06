@@ -52,6 +52,17 @@ RUN bash -c "ln -s /home/kafka* $KAFKA_HOME"
 ENV PATH=$GRAALVM_HOME/bin:$PATH
 ENV PATH=$KAFKA_HOME/bin:$PATH
 
+RUN apt-get install -y \
+  bash-completion \
+  curl \
+  btop \
+  less \
+  man \
+  ncurses-bin \
+  tree \
+  vim \
+  ;
+
 # Mount project files here or use as base image
 RUN mkdir /libnjkafka
 WORKDIR /libnjkafka
