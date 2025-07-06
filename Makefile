@@ -4,7 +4,6 @@ ifeq ($(OS),Linux)
 	LIB_EXT = so
 	CC ?= gcc
 	PLATFORM_NATIVE_IMAGE_FLAGS = ""
-	EXTRA_C_FLAGS=""
 endif
 ifeq ($(OS),Darwin)
 	LIB_EXT = dylib
@@ -35,7 +34,7 @@ NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) --native-co
 # C compilation
 C_SRC = csrc
 C_SRCS = $(wildcard $(C_SRC)/*.c)
-C_FLAGS = -Wall -Werror -std=c11 -fPIC -g $(EXTRA_C_FLAGS)
+C_FLAGS = -Wall -Werror -std=c11 -fPIC -g
 
 # JAVA source
 JAVA_SRC = src/main/java/com/zendesk/libnjkafka
@@ -74,6 +73,14 @@ $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_AP
 		-Wl,-install_name,@rpath/libnjkafka.dylib \
 		-L$(PROJECT_HOME)/$(BUILD_DIR) \
 		-lnjkafka_core
+endif
+
+ifeq ($(OS),Linux)
+$(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
+	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
+	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) \
+		$(C_API_OBJECT) \
+		-L$(BUILD_DIR) -lnjkafka_core
 endif
 
 .PHONY: c-api
@@ -219,7 +226,7 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
-	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
+	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
 
 ifeq ($(OS),Darwin)
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
@@ -229,6 +236,14 @@ $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
 		-o $(C_EXECUTABLE)
 
 endif
+ifeq ($(OS),Linux)
+$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
+	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) \
+			$(DEMO_DIR)/c/demo.c \
+			-I $(BUILD_DIR) \
+			$(DEMO_C_LIBS) \
+			-o $(C_EXECUTABLE)
+endif
 
 ## Misc #######################################################################
 
@@ -237,6 +252,12 @@ compile_flags.txt: Makefile
 	echo -Iinclude >> compile_flags.txt
 	echo -I$(BUILD_DIR) >> compile_flags.txt
 	echo -L$(BUILD_DIR) >> compile_flags.txt
+
+.PHONY: clean-c
+clean-c:
+	rm -f $(C_EXECUTABLE)
+	rm -f $(SHARED_LIBRARY_OBJECT)
+	rm -f $(C_API_OBJECT)
 
 .PHONY: clean
 clean:
