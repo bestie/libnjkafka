@@ -71,15 +71,13 @@ $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_AP
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
 	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
 		-Wl,-install_name,@rpath/libnjkafka.dylib \
-		-L$(PROJECT_HOME)/$(BUILD_DIR) \
-		-lnjkafka_core
+		-L$(BUILD_DIR) \ -lnjkafka_core
 endif
 
 ifeq ($(OS),Linux)
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
-	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) \
-		$(C_API_OBJECT) \
+	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
 		-L$(BUILD_DIR) -lnjkafka_core
 endif
 
