@@ -129,6 +129,7 @@ build/scripts/docker-run: Makefile
 	@mkdir -p build/scripts
 	@echo '#!/usr/bin/env sh' > $@
 	@echo 'docker run \\' >> $@
+	@echo '  --interactive --tty \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
@@ -151,7 +152,7 @@ docker-demos: build/scripts/docker-run
 
 .PHONY: docker-bash
 docker-bash: build/scripts/docker-run
-	./build/scripts/docker-run bash
+	./build/scripts/docker-run bash --login
 
 ## Demos ######################################################################
 
