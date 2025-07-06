@@ -67,12 +67,14 @@ all: native lib
 .PHONY: lib
 lib: $(SHARED_LIBRARY_OBJECT)
 
+ifeq ($(OS),Darwin)
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
 	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
 		-Wl,-install_name,@rpath/libnjkafka.dylib \
 		-L$(PROJECT_HOME)/$(BUILD_DIR) \
 		-lnjkafka_core
+endif
 
 .PHONY: c-api
 c-api: $(C_API_OBJECT)
@@ -217,10 +219,16 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
+	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
 
+ifeq ($(OS),Darwin)
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) -Wl,-rpath ./ -o $(C_EXECUTABLE)
+	$(CC) $(C_FLAGS) \
+		-I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
+		-Wl,-rpath,@executable_path \
+		-o $(C_EXECUTABLE)
+
+endif
 
 ## Misc #######################################################################
 
