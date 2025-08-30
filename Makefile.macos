@@ -165,7 +165,7 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 
 .PHONY: ruby-clean
 ruby-clean:
-	rm -f $(DEMO_DIR)/ruby/build/*
+	rm -rf $(DEMO_DIR)/ruby/build/*
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
 RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
@@ -195,7 +195,7 @@ ruby-demo: $(RUBY_C_EXT_BUNDLE)
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): ruby-clean $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
+$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
 
@@ -245,7 +245,7 @@ clean: ruby-clean
 
 .PHONY: topic-create
 topic-create:
-	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic create
+	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic create && ./scripts/publish_messages.sh
 
 .PHONY: topic-delete
 topic-delete:
