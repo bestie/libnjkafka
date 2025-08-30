@@ -126,11 +126,17 @@ $(BUILD_DIR)/generator: src/main/java/com/zendesk/code_gen/StructRegistryGenerat
 
 ## Docker #####################################################################
 
-DOCKER_TAG ?= lib$(LIB_NAME):latest
+DOCKER_IMAGE_NAME = libnjkafka
+DOCKER_IMAGE_TAG ?= dev-latest
 DOCKER_PROJECT_HOME = /libnjkafka
 
 .PHONY: docker-build
 docker-build: build/.docker_build
+
+.PHONY: docker-push
+docker-push: docker-build
+docker tag libnjkafka:dev-latest ghcr.io/bestie/libnjkafka:dev-latest
+	docker push ghcr.io/bestie/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
 
 build/scripts/docker-run: Makefile
 	@mkdir -p build/scripts
@@ -147,7 +153,7 @@ build/scripts/docker-run: Makefile
 
 build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
 	mkdir -p $(BUILD_BASE_DIR)
-	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
+	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) . && touch build/.docker_build
 
 .PHONY: docker-make
 docker-make: build/scripts/docker-run
@@ -169,7 +175,7 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 
 .PHONY: ruby-clean
 ruby-clean:
-	rm -f $(DEMO_DIR)/ruby/build/*
+	rm -rf $(DEMO_DIR)/ruby/build/*
 
 RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
 RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
