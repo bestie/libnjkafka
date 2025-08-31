@@ -11,7 +11,7 @@
 #include "libnjkafka.h"
 #include "libnjkafka_callbacks.h"
 
-#define MESSAGE_COUNT_ENV_KEY "EXECPTED_MESSAGE_COUNT"
+#define MESSAGE_COUNT_ENV_KEY "EXPECTED_MESSAGE_COUNT"
 
 #define DEFAULT_PARTITIONS 12
 #define DEFAULT_EXPECTED_MESSAGE_COUNT 120
