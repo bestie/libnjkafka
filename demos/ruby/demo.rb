@@ -3,14 +3,38 @@ require 'benchmark'
 benchmarks = {}
 
 benchmarks["Load C extension"] = Benchmark.realtime do
-  require File.join(ENV.fetch("C_EXT_PATH"), "libnjkafka_ext")
+  require_relative "lib_nj_kafka"
 end
 
+kafka_topic = ENV.fetch('KAFKA_TOPIC')
+
+partition_numbers = (0..11)
 expected_record_count = 120
 exit_code = 0
 
 consumer = nil
 group_id = "libnjkafka-ruby-demo-#{SecureRandom.uuid}"
+
+class RebalanceListener
+  def initialize
+    @method_calls = []
+  end
+
+  attr_reader :method_calls
+
+  def on_partitions_revoked(consumer, partitions)
+    @method_calls << [:on_partitions_revoked, consumer, partitions]
+    puts "Partitions revoked: #{partitions.inspect}"
+  end
+
+  def on_partitions_assigned(consumer, partitions)
+    @method_calls << [:on_partitions_assigned, consumer, partitions]
+    puts "Partitions assigned: #{partitions.inspect}"
+  end
+end
+rebalance_listener = RebalanceListener.new
+
+puts "Creating consumer with group.id=#{group_id}"
 
 benchmarks["Create consumer"] = Benchmark.realtime do
   config = {
@@ -37,9 +61,9 @@ benchmarks["Create consumer"] = Benchmark.realtime do
   consumer = LibNJKafka.create_consumer(config)
 end
 
-puts "Subscribing to #{ENV.fetch('KAFKA_TOPIC')}"
+puts "Subscribing to #{kafka_topic}"
 benchmarks["Subscribe to topic"] = Benchmark.realtime do
-  consumer.subscribe(ENV.fetch('KAFKA_TOPIC'))
+  consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
 end
 
 puts "Polling for messages"
@@ -64,24 +88,51 @@ benchmarks["Close consumer"] = Benchmark.realtime do
   consumer.close
 end
 
-ANSI_GREEN = "\e[32m"
-ANSI_RED = "\e[31m"
+GREEN = "\e[32m"
+RED = "\e[31m"
 ANSI_RESET = "\e[0m"
 at_exit { print ANSI_RESET }
 
+failed = false
+
 if record_count == expected_record_count
-  print ANSI_GREEN
+  puts GREEN + "Got #{record_count}/#{expected_record_count} records."
 else
-  print ANSI_RED
-  exit_code = 1
+  puts RED + "Got #{record_count}/#{expected_record_count} records."
+  failed = true
 end
 
-puts "Got #{record_count}/#{expected_record_count} records."
+all_topic_partitions = partition_numbers.map { |pn| LibNJKafka::TopicPartition.new(kafka_topic, pn) }
+
+expected_rebalance_calls = [
+  [:on_partitions_assigned, consumer.object_id, { kafka_topic => partition_numbers.to_a }],
+  [:on_partitions_revoked, consumer.object_id, { kafka_topic => partition_numbers.to_a }],
+]
+
+actual_rebalance_method_calls = rebalance_listener.method_calls.map { |method_id, consumer, partitions|
+  [method_id, consumer.object_id, partitions.to_h]
+}
+
+if actual_rebalance_method_calls == expected_rebalance_calls
+  puts GREEN + "Got expected RebalanceListener method calls:"
+  pp rebalance_listener.method_calls
+else
+  failed = true
+  puts RED + "Did not receive expected rebalance listener method calls. \n" \
+    "  Expected: \n"
+  pp expected_rebalance_calls
+  puts "  Got: "
+  pp actual_rebalance_method_calls
+end
+
+puts ANSI_RESET
 benchmarks.each do |name, time|
   ms = (time.real * 1000).round(4)
   puts "#{name}: \t#{ms}ms"
 end
 
 puts "Ruby version: #{RUBY_VERSION}"
+
+exit_code = failed ? 1 : 0
 
 exit exit_code

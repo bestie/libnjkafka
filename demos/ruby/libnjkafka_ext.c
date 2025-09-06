@@ -6,8 +6,20 @@ typedef struct {
     libnjkafka_Consumer* consumer_ref;
 } Consumer;
 
+typedef struct {
+    VALUE listener_obj;
+    VALUE consumer_obj;
+} RebalanceListenerOpaque;
+
 VALUE module;
 VALUE consumer_class;
+VALUE topic_partition_class;
+VALUE topic_partition_list_class;
+
+// Define rebalancer method names
+#define ON_PARTITIONS_ASSIGNED "on_partitions_assigned"
+#define ON_PARTITIONS_REVOKED "on_partitions_revoked"
+#define ON_PARTITIONS_LOST "on_partitions_lost"
 
 // Helper methods
 static char* get_hash_string_value(VALUE hash, const char* key) {
@@ -23,6 +35,59 @@ static int get_hash_int_value(VALUE hash, const char* key) {
 static int get_hash_bool_value(VALUE hash, const char* key) {
     VALUE val = rb_hash_aref(hash, ID2SYM(rb_intern(key)));
     return NIL_P(val) ? 0 : RTEST(val);
+}
+
+static void call_listener_method(void* rb_objs, const char* method_name, libnjkafka_TopicPartition_List* topic_partitions) {
+    VALUE target_method = rb_intern(method_name);
+    if(rb_objs == NULL) return;
+
+    RebalanceListenerOpaque* rlbo = (RebalanceListenerOpaque*)rb_objs;
+    VALUE listener_obj = rlbo->listener_obj;
+    VALUE consumer_obj = rlbo->consumer_obj;
+
+    if(!rb_respond_to(listener_obj, rb_intern(method_name))) return;
+
+    VALUE rb_array = rb_ary_new2(topic_partitions->count);
+    for (int i = 0; i < topic_partitions->count; i++) {
+        VALUE topic_name = rb_str_new_cstr(topic_partitions->items[i].topic);
+        printf(" Topic: %s, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
+        VALUE partition_n = INT2NUM(topic_partitions->items[i].partition);
+
+        // create a new TopicPartition object
+        VALUE rb_topic_partion = rb_funcall(topic_partition_class, rb_intern("new"), 2, topic_name, partition_n);
+        rb_ary_push(rb_array, rb_topic_partion);
+    }
+    VALUE rb_topic_parition_list = rb_funcall(topic_partition_list_class, rb_intern("new"), 1, rb_array);
+
+    rb_funcall(listener_obj, target_method, 2, consumer_obj, rb_topic_parition_list);
+    libnjkafka_free_TopicPartition_List(topic_partitions);
+}
+
+static void on_partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+    printf("C-EXT Assigned partitions: %d\n", topic_partitions->count);
+    for(int i=0; i<topic_partitions->count; i++) {
+      printf(" C-EXT 👂👂👂 assigned Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
+    }
+
+    call_listener_method(rb_objs, ON_PARTITIONS_ASSIGNED, topic_partitions);
+}
+
+static void on_partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+    printf("C-EXT Revoked partitions: %d\n", topic_partitions->count);
+    for(int i=0; i<topic_partitions->count; i++) {
+      printf(" C-EXT 👂👂👂 revoked Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
+    }
+
+    call_listener_method(rb_objs, ON_PARTITIONS_REVOKED, topic_partitions);
+}
+
+static void on_partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+    printf("C-EXT Lost partitions: %d\n", topic_partitions->count);
+    for(int i=0; i<topic_partitions->count; i++) {
+      printf(" C-EXT 👂👂👂 lost Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
+    }
+
+    call_listener_method(rb_objs, ON_PARTITIONS_LOST, topic_partitions);
 }
 
 libnjkafka_ConsumerConfig hash_to_consumer_config(VALUE hash) {
@@ -52,7 +117,7 @@ libnjkafka_ConsumerConfig hash_to_consumer_config(VALUE hash) {
     return config;
 }
 
-static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic) {
+static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic, VALUE rb_rebalance_listener) {
     Consumer* consumer;
     Data_Get_Struct(self, Consumer, consumer);
 
@@ -69,7 +134,24 @@ static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic) {
         rb_raise(rb_eRuntimeError, "Invalid topic string");
     }
 
-    int result = libnjkafka_consumer_subscribe(consumer->consumer_ref, c_kafka_topic, libnjkafka_null_rebalance_listener());
+    libnjkafka_ConsumerRebalanceListener* rebalance_listener;
+
+    if (rb_rebalance_listener == Qnil) {
+        rebalance_listener = libnjkafka_null_rebalance_listener();
+    } else {
+        rebalance_listener = ALLOC(libnjkafka_ConsumerRebalanceListener);
+        RebalanceListenerOpaque* opaque;
+        opaque = ALLOC(RebalanceListenerOpaque);
+        opaque->listener_obj = rb_rebalance_listener;
+        opaque->consumer_obj = self;
+
+        rebalance_listener->on_partitions_assigned = (libnjkafka_ConsumerRebalanceCallback)&on_partitions_assigned;
+        rebalance_listener->on_partitions_revoked = (libnjkafka_ConsumerRebalanceCallback)&on_partitions_revoked;
+        rebalance_listener->on_partitions_lost = (libnjkafka_ConsumerRebalanceCallback)&on_partitions_lost;
+        rebalance_listener->opaque = (void*)opaque;
+    }
+
+    int result = libnjkafka_consumer_subscribe(consumer->consumer_ref, c_kafka_topic, rebalance_listener);
     if (result != 0) {
         rb_raise(rb_eRuntimeError, "Failed to subscribe to Kafka topic");
     }
@@ -204,14 +286,16 @@ void Init_libnjkafka_ext() {
 
     module = rb_define_module("LibNJKafka");
     consumer_class = rb_define_class_under(module, "Consumer", rb_cObject);
+    topic_partition_class = rb_define_class_under(module, "TopicPartition", rb_cObject);
+    topic_partition_list_class = rb_define_class_under(module, "TopicPartitionList", rb_cObject);
 
     rb_define_singleton_method(module, "create_consumer", create_consumer, 1);
 
     rb_define_alloc_func(consumer_class, consumer_alloc);
     rb_define_method(consumer_class, "initialize", consumer_initialize, 0);
-    rb_define_method(consumer_class, "subscribe", consumer_subscribe, 1);
     rb_define_method(consumer_class, "poll", consumer_poll, 1);
     rb_define_method(consumer_class, "poll_each_message", consumer_poll_each_message, 1);
     rb_define_method(consumer_class, "commit_all_sync", consumer_commit_all_sync, 1);
     rb_define_method(consumer_class, "close", consumer_close, 0);
+    rb_define_private_method(consumer_class, "cext_subscribe", consumer_subscribe, 2);
 }
