@@ -15,6 +15,8 @@ VALUE module;
 VALUE consumer_class;
 VALUE topic_partition_class;
 VALUE topic_partition_list_class;
+VALUE consumer_record_class;
+VALUE consumer_record_list_class;
 
 // Define rebalancer method names
 #define ON_PARTITIONS_ASSIGNED "on_partitions_assigned"
@@ -159,6 +161,24 @@ static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic, VALUE rb_rebalanc
     return Qnil;
 }
 
+static VALUE consumer_record_to_rb_hash(libnjkafka_ConsumerRecord record) {
+    VALUE hash = rb_hash_new();
+    rb_hash_aset(hash, ID2SYM(rb_intern("partition")), INT2NUM(record.partition));
+    rb_hash_aset(hash, ID2SYM(rb_intern("offset")), LONG2NUM(record.offset));
+    rb_hash_aset(hash, ID2SYM(rb_intern("timestamp")), LONG2NUM(record.timestamp));
+    rb_hash_aset(hash, ID2SYM(rb_intern("key")), rb_str_new_cstr(record.key));
+    rb_hash_aset(hash, ID2SYM(rb_intern("topic")), rb_str_new_cstr(record.topic));
+    rb_hash_aset(hash, ID2SYM(rb_intern("value")), rb_str_new_cstr(record.value));
+    return hash;
+}
+
+static VALUE consumer_record_to_rb(libnjkafka_ConsumerRecord record) {
+    VALUE kwargs = consumer_record_to_rb_hash(record);
+    VALUE argv[1] = { kwargs };
+    VALUE cr = rb_funcallv_kw(consumer_record_class, rb_intern("new"), 1, argv, RB_PASS_KEYWORDS);
+    return cr;
+}
+
 static VALUE consumer_poll(VALUE self, VALUE timeout) {
     Consumer* consumer;
     Data_Get_Struct(self, Consumer, consumer);
@@ -167,34 +187,21 @@ static VALUE consumer_poll(VALUE self, VALUE timeout) {
 
     libnjkafka_ConsumerRecord_List* record_list = libnjkafka_consumer_poll(consumer->consumer_ref, c_timeout);
 
-    // Just Ruby hashes for now
     VALUE array = rb_ary_new2(record_list->count);
     for (int i = 0; i < record_list->count; i++) {
-        VALUE hash = rb_hash_new();
-        rb_hash_aset(hash, rb_str_new_cstr("partition"), INT2NUM(record_list->records[i].partition));
-        rb_hash_aset(hash, rb_str_new_cstr("offset"), LONG2NUM(record_list->records[i].offset));
-        rb_hash_aset(hash, rb_str_new_cstr("timestamp"), LONG2NUM(record_list->records[i].timestamp));
-        rb_hash_aset(hash, rb_str_new_cstr("key"), rb_str_new_cstr(record_list->records[i].key));
-        rb_hash_aset(hash, rb_str_new_cstr("topic"), rb_str_new_cstr(record_list->records[i].topic));
-        rb_hash_aset(hash, rb_str_new_cstr("value"), rb_str_new_cstr(record_list->records[i].value));
-        rb_ary_push(array, hash);
+        VALUE cr = consumer_record_to_rb(record_list->records[i]);
+        rb_ary_push(array, cr);
     }
 
+    VALUE cr_list = rb_funcall(consumer_record_list_class, rb_intern("new"), 1, array);
+
     libnjkafka_free_ConsumerRecord_List(record_list);
-    return array;
+    return cr_list;
 }
 
 static int poll_each_message_callback(libnjkafka_ConsumerRecord record, VALUE block) {
-    VALUE hash = rb_hash_new();
-    rb_hash_aset(hash, rb_str_new_cstr("partition"), INT2NUM(record.partition));
-    rb_hash_aset(hash, rb_str_new_cstr("offset"), LONG2NUM(record.offset));
-    rb_hash_aset(hash, rb_str_new_cstr("timestamp"), LONG2NUM(record.timestamp));
-    rb_hash_aset(hash, rb_str_new_cstr("key"), rb_str_new_cstr(record.key));
-    rb_hash_aset(hash, rb_str_new_cstr("topic"), rb_str_new_cstr(record.topic));
-    rb_hash_aset(hash, rb_str_new_cstr("value"), rb_str_new_cstr(record.value));
-
-    rb_proc_call(block, rb_ary_new_from_args(1, hash));
-
+    VALUE cr = consumer_record_to_rb(record);
+    rb_proc_call(block, rb_ary_new_from_args(1, cr));
     return 0;
 }
 
@@ -289,6 +296,8 @@ void Init_libnjkafka_ext() {
     consumer_class = rb_define_class_under(module, "Consumer", rb_cObject);
     topic_partition_class = rb_define_class_under(module, "TopicPartition", rb_cObject);
     topic_partition_list_class = rb_define_class_under(module, "TopicPartitionList", rb_cObject);
+    consumer_record_class =  rb_define_class_under(module, "ConsumerRecord", rb_cObject);
+    consumer_record_list_class =  rb_define_class_under(module, "ConsumerRecordList", rb_cObject);
 
     rb_define_singleton_method(module, "create_consumer", create_consumer, 1);
 

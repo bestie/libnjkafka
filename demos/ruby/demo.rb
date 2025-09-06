@@ -66,17 +66,27 @@ benchmarks["Subscribe to topic"] = Benchmark.realtime do
   consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
 end
 
-puts "Polling for messages"
-record_count = 0
-output = []
-benchmarks["Poll / Consume"] = Benchmark.measure do
-  consumer.poll_each_message(2000) do |record|
-    record_count += 1
-    output << record.inspect
+puts "Polling for messages (batch)"
+offsets = []
+
+if ENV["RUN_BATCH_POLL_RETURN"]
+  benchmarks["Poll & Process (Batch return)"] = Benchmark.measure do
+    records = consumer.poll(2000)
+    records.each do |record|
+      offsets << [record.partition, record.offset]
+      print "."
+    end
+  end
+else
+  benchmarks["Poll & Process (each message block)"] = Benchmark.measure do
+    consumer.poll_each_message(2000) do |record|
+      offsets << [record.partition, record.offset]
+      print "."
+    end
   end
 end
 
-puts output
+record_count = offsets.uniq.size
 
 puts "Committing offsets synchronously"
 benchmarks["Commit offsets"] = Benchmark.realtime do
@@ -99,7 +109,7 @@ if record_count == expected_record_count
   puts GREEN + "Got #{record_count}/#{expected_record_count} records."
 else
   puts RED + "Got #{record_count}/#{expected_record_count} records."
-  failed = true
+  exit 1
 end
 
 all_topic_partitions = partition_numbers.map { |pn| LibNJKafka::TopicPartition.new(kafka_topic, pn) }
@@ -115,14 +125,11 @@ actual_rebalance_method_calls = rebalance_listener.method_calls.map { |method_id
 
 if actual_rebalance_method_calls == expected_rebalance_calls
   puts GREEN + "Got expected RebalanceListener method calls:"
-  pp rebalance_listener.method_calls
 else
   failed = true
   puts RED + "Did not receive expected rebalance listener method calls. \n" \
     "  Expected: \n"
-  pp expected_rebalance_calls
   puts "  Got: "
-  pp actual_rebalance_method_calls
 end
 
 puts ANSI_RESET
