@@ -180,6 +180,7 @@ static VALUE consumer_poll(VALUE self, VALUE timeout) {
         rb_ary_push(array, hash);
     }
 
+    libnjkafka_free_ConsumerRecord_List(record_list);
     return array;
 }
 
