@@ -63,7 +63,7 @@ public class Structs {
 
     public interface RebalanceCallback extends CFunctionPointer {
         @InvokeCFunctionPointer
-        void invoke(IsolateThread thread, TopicPartitionListLayout partitions);
+        void invoke(IsolateThread thread, TopicPartitionListLayout partitions, PointerBase opaque);
     }
 
     @CStruct("libnjkafka_ConsumerRebalanceListener")
@@ -82,6 +82,11 @@ public class Structs {
         RebalanceCallback onPartitionsLost();
         @CField("on_partitions_lost")
         void onPartitionsLost(RebalanceCallback callback);
+
+        @CField("opaque")
+        PointerBase getOpaque();
+        @CField("opaque")
+        void setOpaque(PointerBase opaque);
     }
 
     @CStruct("libnjkafka_ArrayWrapper")

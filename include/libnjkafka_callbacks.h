@@ -10,6 +10,7 @@ typedef struct {
   libnjkafka_ConsumerRebalanceCallback on_partitions_assigned;
   libnjkafka_ConsumerRebalanceCallback on_partitions_revoked;
   libnjkafka_ConsumerRebalanceCallback on_partitions_lost;
+  void* opaque;
 } libnjkafka_ConsumerRebalanceListener;
 
 #endif

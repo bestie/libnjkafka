@@ -23,47 +23,54 @@
 
 libnjkafka_Producer* producer;
 
+void* processor_callback_opaque;
+void* assigned_partitions_opaque;
+void* revoked_partitions_opaque;
+int assigned_partitions[DEFAULT_PARTITIONS] = {};
+int revoked_partitions[DEFAULT_PARTITIONS] = {};
+
 int print_message(libnjkafka_ConsumerRecord record, void* opaque) {
-    printf("Message partition %d, offset %ld, key %s, value `%s`\n", record.partition, record.offset, record.key, record.value);
+    processor_callback_opaque = opaque;
+    char* opque_string = (char*)opaque;
+    printf("Message partition %d, offset %ld, key %s, value `%s`, opaque `%s`\n", record.partition, record.offset, record.key, record.value, opque_string);
     return 0;
 }
 
-int assigned_partitions[DEFAULT_PARTITIONS] = {};
-int revoked_partitions[DEFAULT_PARTITIONS] = {};
-bool rebalance_listener_called = false;
 
-void print_partitions(char event[8], libnjkafka_TopicPartition_List* topic_partitions) {
-    rebalance_listener_called = true;
-    printf("👂Rebalance callback: partitions %s: %d\n", event, topic_partitions->count);
+void print_partitions(char event[8], libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
+    char* opaque_value = (char*)opaque;
+    printf("👂Rebalance callback: partitions %s: %d, opaque value=`%s`\n", event, topic_partitions->count, opaque_value);
     for(int i=0; i<topic_partitions->count; i++) {
         libnjkafka_TopicPartition tp = topic_partitions->items[i];
         printf(" 👂👂👂 assigned Partition: %d\n", tp.partition);
     }
 }
-void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
+void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf(" CCCCCCCCCCCCCCCC   Assigned partitions: %d\n", topic_partitions->count);
     char event[8] = "assigned";
-    print_partitions(event, topic_partitions);
+    print_partitions(event, topic_partitions, opaque);
     for(int i=0; i<topic_partitions->count; i++) {
       assigned_partitions[topic_partitions->items[i].partition] = 1;
     }
+    assigned_partitions_opaque = opaque;
 }
-void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
+void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("👂Revoked partitions: %d\n", topic_partitions->count);
     char event[8] = "revoked";
-    print_partitions(event, topic_partitions);
+    print_partitions(event, topic_partitions, opaque);
     for(int i=0; i<topic_partitions->count; i++) {
       revoked_partitions[topic_partitions->items[i].partition] = 1;
     }
+    revoked_partitions_opaque = opaque;
 }
 
-void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions) {
+void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("👂Lost partitions: %d\n", topic_partitions->count);
     char event[8] = "lost";
-    print_partitions(event, topic_partitions);
+    print_partitions(event, topic_partitions, opaque);
 }
 
-bool ensure_partitions_assigned_callback_called() {
+bool ensure_partitions_assigned_callback_called_with_all_partitions_and_opaque(void* expected_opaque) {
     bool partitions_assigned_callback_success = true;
     for(int i=0; i<DEFAULT_PARTITIONS; i++) {
       if(assigned_partitions[i] != 1) {
@@ -71,22 +78,35 @@ bool ensure_partitions_assigned_callback_called() {
         partitions_assigned_callback_success = false;
       }
     }
+    if(revoked_partitions_opaque == expected_opaque) {
+        printf(GREEN "libnjkafka_consumer_rebalance_listener Success: Opaque matches expected value\n" RESET);
+    } else {
+        printf(RED "libnjkafka_consumer_rebalance_listener Error: Opaque does not match expected value\n" RESET);
+        partitions_assigned_callback_success = false;
+    }
     if(partitions_assigned_callback_success) {
       printf(GREEN "libnjkafka_consumer_rebalance_listener Success: All partitions were assigned\n" RESET);
     }
     return partitions_assigned_callback_success;
 }
 
-bool ensure_partitions_revoked_callback_called() {
+bool ensure_partitions_revoked_callback_called_with_all_partitions_and_opaque(void* expected_opaque) {
     bool partitions_revoked_callback_success = true;
     for(int i=0; i<DEFAULT_PARTITIONS; i++) {
-      if(revoked_partitions[i] != 1) {
-        printf(RED "libnjkafka_consumer_rebalance_listener Error: Expected partition %d to be revoked\n" RESET, i);
-        partitions_revoked_callback_success = false;
-      }
+        if(revoked_partitions[i] != 1) {
+            printf(RED "libnjkafka_consumer_rebalance_listener Error: Expected partition %d to be revoked\n" RESET, i);
+            partitions_revoked_callback_success = false;
+        }
     }
+    if(revoked_partitions_opaque == expected_opaque) {
+        printf(GREEN "libnjkafka_consumer_rebalance_listener Success: Opaque matches expected value\n" RESET);
+    } else {
+        printf(RED "libnjkafka_consumer_rebalance_listener Error: Opaque does not match expected value\n" RESET);
+        partitions_revoked_callback_success = false;
+    }
+
     if(partitions_revoked_callback_success) {
-      printf(GREEN "libnjkafka_consumer_rebalance_listener Success: All partitions were revoked\n" RESET);
+        printf(GREEN "libnjkafka_consumer_rebalance_listener Success: All partitions were revoked\n" RESET);
     }
     return partitions_revoked_callback_success;
 }
@@ -205,10 +225,14 @@ int main() {
 
     libnjkafka_Consumer* consumer = libnjkafka_create_consumer(config);
 
+    char* opaque_value = "hello there 🧐";
+    void* opaque_ptr = (void*)opaque_value;
+
     libnjkafka_ConsumerRebalanceListener* rebalance_listener = malloc(sizeof(libnjkafka_ConsumerRebalanceListener));
     rebalance_listener->on_partitions_assigned = (libnjkafka_ConsumerRebalanceCallback)&partitions_assigned;
     rebalance_listener->on_partitions_revoked = (libnjkafka_ConsumerRebalanceCallback)&partitions_revoked;
     rebalance_listener->on_partitions_lost = (libnjkafka_ConsumerRebalanceCallback)&partitions_lost;
+    rebalance_listener->opaque = opaque_ptr;
 
     libnjkafka_consumer_subscribe(consumer, strdup(kafka_topic), rebalance_listener);
 
@@ -304,7 +328,6 @@ int main() {
     libnjkafka_free_TopicPartitionOffsetAndMetadata_List(offsets);
 
     libnjkafka_consumer_close(consumer);
-    ensure_partitions_revoked_callback_called();
 
     printf("\n\n");
     printf(GREEN "libnjkafka_consumer_poll Processed %d messages as expected.\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT);
@@ -318,13 +341,22 @@ int main() {
     libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer(config);
     libnjkafka_consumer_subscribe(consumer2, strdup(kafka_topic), rebalance_listener);
 
-    void* opaque = NULL;
+    char* opaque_string = "Opaque for callback 🥸";
+    void* opaque = (void*)opaque_string;
+
     libnjkafka_ConsumerRecordProcessor* processor = (libnjkafka_ConsumerRecordProcessor*)print_message;
     libnjkafka_BatchResults results = libnjkafka_consumer_poll_each_message(consumer2, 100, processor, opaque);
 
     if(results.success_count != DEFAULT_EXPECTED_MESSAGE_COUNT) {
       printf(RED "libnjkafka_consumer_poll_each_message Error: Expected %d, got %d\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT, results.success_count);
       exit(1);
+    }
+
+    if (processor_callback_opaque == opaque) {
+        printf(GREEN "libnjkafka_consumer_poll_each_message Success: Opaque matches expected value\n" RESET);
+    } else {
+        printf(RED "libnjkafka_consumer_poll_each_message Error: Opaque does not match expected value\n" RESET);
+        exit(1);
     }
 
     printf("\n\n");
@@ -359,14 +391,13 @@ int main() {
     pthread_join(pt2, NULL);
     printf("Thread 2 joined\n");
 
-    if(rebalance_listener_called) {
+    if(ensure_partitions_assigned_callback_called_with_all_partitions_and_opaque(opaque_ptr) &&
+       ensure_partitions_revoked_callback_called_with_all_partitions_and_opaque(opaque_ptr)) {
       printf(GREEN "libnjkafka_consumer_subscribe Success: Rebalance listener was called\n" RESET);
     } else {
       printf(RED "libnjkafka_consumer_subscribe Error: Rebalance listener was not called\n" RESET);
       exit(1);
     }
-
-    ensure_partitions_assigned_callback_called();
 
     libnjkafka_teardown();
     return 0;
