@@ -190,7 +190,7 @@ docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
-	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby --disable=gems demo.rb
+	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build ruby --disable=gems demo.rb
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
@@ -216,15 +216,18 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
+	cd $(BUILD_DIR) && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
 
 # $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
 # 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) -L $(BUILD_DIR) -lnjkafka \
 # 		$(C_DEMO_RPATH) -o $(C_EXECUTABLE) \
 # 		$(DEMO_DIR)/c/demo.c
 
-$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) -Wl,-rpath ./ -o $(C_EXECUTABLE)
+$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT)
+	$(CC) $(C_FLAGS) \
+		-I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
+		-Wl,-rpath,@executable_path \
+		-o $(C_EXECUTABLE)
 
 ## Misc #######################################################################
 
