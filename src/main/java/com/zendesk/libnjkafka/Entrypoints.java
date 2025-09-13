@@ -18,6 +18,7 @@ import org.graalvm.nativeimage.UnmanagedMemory;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
+import org.graalvm.nativeimage.c.type.CTypeConversion.CCharPointerHolder;
 import org.graalvm.word.PointerBase;
 
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
@@ -34,6 +35,15 @@ import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataListLayout;
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
     public static ProducerRegistry producerRegistry = new ProducerRegistry();
+    public static CCharPointerRegistry cStringRegistry = new CCharPointerRegistry();
+
+    private static CCharPointer toCString(String string) {
+        CCharPointerHolder cStringHolder = CTypeConversion.toCString(string);
+        CCharPointer cString = cStringHolder.get();
+        long pointerAddress = cString.rawValue();
+        cStringRegistry.put(pointerAddress, cStringHolder);
+        return cString;
+    }
 
     @CEntryPoint(name = "libnjkafka_java_create_producer")
     public static long createProducer(IsolateThread thread, ProducerConfigLayout cConfig) {
@@ -147,7 +157,7 @@ public class Entrypoints {
                     for (TopicPartition topicPartition : topicPartitions) {
                         TopicPartitionLayout cPartition = iterator.next();
                         cPartition.setPartition(topicPartition.partition());
-                        cPartition.setTopic(CTypeConversion.toCString(topicPartition.topic()).get());
+                        cPartition.setTopic(toCString(topicPartition.topic()));
                     }
                 }
                 );
@@ -169,8 +179,8 @@ public class Entrypoints {
                     for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
                         TopicPartitionOffsetAndMetadataLayout cStruct = iterator.next();
 
-                        CCharPointer topic = CTypeConversion.toCString(entry.getKey().topic()).get();
-                        CCharPointer metadata = CTypeConversion.toCString(entry.getValue().metadata()).get();
+                        CCharPointer topic = toCString(entry.getKey().topic());
+                        CCharPointer metadata = toCString(entry.getValue().metadata());
                         int partition = entry.getKey().partition();
                         long offset = entry.getValue().offset();
 
@@ -203,9 +213,9 @@ public class Entrypoints {
                 cRecord.setOffset(record.offset());
                 cRecord.setPartition(record.partition());
                 cRecord.setTimestamp(record.timestamp());
-                cRecord.setKey(CTypeConversion.toCString(record.key()).get());
-                cRecord.setTopic(CTypeConversion.toCString(record.topic()).get());
-                cRecord.setValue(CTypeConversion.toCString(record.value()).get());
+                cRecord.setKey(toCString(record.key()));
+                cRecord.setTopic(toCString(record.topic()));
+                cRecord.setValue(toCString(record.value()));
               }
             }
         );
@@ -219,6 +229,10 @@ public class Entrypoints {
             ConsumerProxy consumer = consumerRegistry.get(consumerId);
             consumer.close();
             consumerRegistry.remove(consumerId);
+
+            // print the number of cStrings we are holding onto
+            System.out.println("++++++++++++++++++ Freeing consumer, currently holding " + cStringRegistry.size() + " C strings");
+
             return 0;
         } catch (Exception e) {
             return -1;
