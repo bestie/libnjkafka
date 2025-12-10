@@ -205,11 +205,6 @@ static int poll_each_message_callback(libnjkafka_ConsumerRecord record, VALUE bl
     return 0;
 }
 
-static void consumer_free(void* ptr) {
-    Consumer* consumer = (Consumer*)ptr;
-    free(consumer);
-}
-
 static VALUE consumer_alloc(VALUE klass) {
     Consumer* consumer = ALLOC(Consumer);
     return Data_Wrap_Struct(klass, NULL, consumer_free, consumer);
@@ -309,3 +304,36 @@ void Init_libnjkafka_ext() {
     rb_define_method(consumer_class, "close", consumer_close, 0);
     rb_define_private_method(consumer_class, "cext_subscribe", consumer_subscribe, 2);
 }
+
+
+// your struct
+typedef struct {
+  void *consumer_ref;
+} Consumer;
+
+static void consumer_free(void *p) { xfree(p); }
+static size_t consumer_memsize(const void *p) { return sizeof(Consumer); }
+// Only if you hold Ruby objects inside Consumer:
+// static void consumer_mark(void *p) { rb_gc_mark(((Consumer*)p)->obj); }
+
+static const rb_data_type_t consumer_type = {
+  "Consumer",
+  { /*mark*/0, consumer_free, consumer_memsize },
+  0, 0, RUBY_TYPED_FREE_IMMEDIATELY
+};
+
+
+
+static VALUE consumer_alloc(VALUE klass) {
+  Consumer *c;
+  return TypedData_Make_Struct(klass, Consumer, &consumer_type, c);
+}
+
+static Consumer *get_consumer(VALUE self) {
+  Consumer *c;
+  TypedData_Get_Struct(self, Consumer, &consumer_type, c);
+  return c;
+}
+
+// in Init_...
+rb_define_alloc_func(consumer_class, consumer_alloc);

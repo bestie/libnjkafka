@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.concurrent.Future;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -19,7 +21,11 @@ import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
 import org.graalvm.nativeimage.c.type.CTypeConversion.CCharPointerHolder;
+import org.graalvm.nativeimage.c.struct.SizeOf;
+import org.graalvm.word.Pointer;
 import org.graalvm.word.PointerBase;
+import org.graalvm.word.UnsignedWord;
+import org.graalvm.word.WordFactory;
 
 import com.zendesk.libnjkafka.Structs.ConsumerConfigLayout;
 import com.zendesk.libnjkafka.Structs.ConsumerRecordLayout;
@@ -31,19 +37,15 @@ import com.zendesk.libnjkafka.Structs.TopicPartitionLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionListLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataLayout;
 import com.zendesk.libnjkafka.Structs.TopicPartitionOffsetAndMetadataListLayout;
+import com.zendesk.libnjkafka.StructArrayAllocator;
 
 public class Entrypoints {
     public static ConsumerRegistry consumerRegistry = new ConsumerRegistry();
     public static ProducerRegistry producerRegistry = new ProducerRegistry();
     public static CCharPointerRegistry cStringRegistry = new CCharPointerRegistry();
-
-    private static CCharPointer toCString(String string) {
-        CCharPointerHolder cStringHolder = CTypeConversion.toCString(string);
-        CCharPointer cString = cStringHolder.get();
-        long pointerAddress = cString.rawValue();
-        cStringRegistry.put(pointerAddress, cStringHolder);
-        return cString;
-    }
+    public static PointerGraph pointerGraph = new PointerGraph();
+    public static int stringCounter = 0;
+    public static HashSet<Long> freePointers = new HashSet<>();
 
     @CEntryPoint(name = "libnjkafka_java_create_producer")
     public static long createProducer(IsolateThread thread, ProducerConfigLayout cConfig) {
@@ -201,26 +203,33 @@ public class Entrypoints {
 
         consumer.setPollingThread(thread);
         ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(duration));
+        Iterator<ConsumerRecord<String, String>> recordIter = records.iterator();
+        int recordCount = records.count();
 
-        ConsumerRecordListLayout cRecordList = MemoryIterator.allocateAndPopulateStructArray(
-            records.count(),
-            ConsumerRecordListLayout.class,
-            ConsumerRecordLayout.class,
-            iterator -> {
-              for (ConsumerRecord<String, String> record : records) {
-                ConsumerRecordLayout cRecord = iterator.next();
+        StructArrayAllocator<ConsumerRecord<String, String>> allocator = new StructArrayAllocator<>(
+            recordIter,
+            recordCount,
+            SizeOf.get(ConsumerRecordListLayout.class),
+            SizeOf.get(ConsumerRecordLayout.class),
+            (record, alloc) -> {
+                ConsumerRecordLayout recordStruct = (ConsumerRecordLayout) alloc.structPointer();
 
-                cRecord.setOffset(record.offset());
-                cRecord.setPartition(record.partition());
-                cRecord.setTimestamp(record.timestamp());
-                cRecord.setKey(toCString(record.key()));
-                cRecord.setTopic(toCString(record.topic()));
-                cRecord.setValue(toCString(record.value()));
-              }
+                recordStruct.setOffset(record.offset());
+                recordStruct.setPartition(record.partition());
+                recordStruct.setTimestamp(record.timestamp());
+                recordStruct.setKey(alloc.cString(record.key()));
+                recordStruct.setTopic(alloc.cString(record.topic()));
             }
         );
 
-        return cRecordList;
+        ConsumerRecordListLayout cRecordListStruct = (ConsumerRecordListLayout) allocator.populate();
+
+        return cRecordListStruct;
+    }
+
+    @CEntryPoint(name = "libnjkafka_java_free_consumer_record_list")
+    public static void freeConsumerRecordList(IsolateThread thread, ConsumerRecordListLayout cConsumerRecordList) {
+
     }
 
     @CEntryPoint(name = "libnjkafka_java_consumer_close")
@@ -303,5 +312,44 @@ public class Entrypoints {
         } else {
             System.out.println("++++++++++++++++++ User config: Skipping " + key + " as it is empty");
         }
+    }
+
+    public static CCharPointer allocCstr(PointerBase freeWith, String string) {
+        CCharPointerHolder cStringHolder = CTypeConversion.toCString(string);
+        CCharPointer cString = cStringHolder.get();
+        long pointerAddress = cString.rawValue();
+        cStringRegistry.put(pointerAddress, cStringHolder);
+        pointerGraph.addDependency(freeWith.rawValue(), pointerAddress);
+        return cString;
+    }
+
+    private static Pointer calloc(UnsignedWord size) {
+        Pointer pointer = UnmanagedMemory.calloc(size);
+        pointerGraph.addNode(pointer.rawValue());
+        return pointer;
+    }
+
+    private static void free(PointerBase pointer) {
+        long ptr = pointer.rawValue();
+        Set<Long> dependents = pointerGraph.getDependents(ptr);
+        
+        dependents.forEach(dependent -> {
+            CCharPointerHolder stringHolder = cStringRegistry.get(dependent);
+            if (stringHolder != null) {
+                stringHolder.close();
+                cStringRegistry.remove(dependent);
+            } else {
+                UnmanagedMemory.free(WordFactory.pointer(dependent));
+                freePointers.add(dependent);
+            }
+        });
+        UnmanagedMemory.free(pointer);
+        freePointers.add(ptr);
+    }
+
+    private static CCharPointer toCString(String javaString) {
+        CCharPointerHolder cStringHolder = CTypeConversion.toCString(javaString);
+        CCharPointer cString = cStringHolder.get();
+        return cString;
     }
 }

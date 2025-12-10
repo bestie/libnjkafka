@@ -81,7 +81,7 @@ int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerR
 
 int libnjkafka_producer_close(libnjkafka_Producer* producer) {
     long result = libnjkafka_java_producer_close(graalvm_thread_isolate, producer->id);
-    free(producer);
+    // libnjkafka_free(producer);
 
     return result;
 }
@@ -145,7 +145,7 @@ libnjkafka_BatchResults libnjkafka_consumer_poll_each_message(libnjkafka_Consume
         printf("Processed %d of %d messages successfully\n", results.success_count, results.total_records);
     }
 
-    free(records);
+    // libnjkafka_free(records);
     return results;
 }
 
@@ -180,13 +180,16 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
     printf("Closing consumer\n");
 
     int result = libnjkafka_java_consumer_close(graalvm_thread_isolate, consumer->id);
-    free(consumer);
 
     return result;
 }
 
+void libnjkafka_consumer_free(libnjkafka_Consumer* consumer) {
+    // libnjkafka_free(consumer);
+}
+
 void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list) {
-    libnjkafka_free(list);
+    // libnjkafka_java_free_consumer_record_list(graalvm_thread_isolate, list);
 }
 
 void libnjkafka_free_ProducerRecord(libnjkafka_ProducerRecord* record) {
