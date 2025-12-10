@@ -345,7 +345,7 @@ int main() {
     void* opaque = (void*)opaque_string;
 
     libnjkafka_ConsumerRecordProcessor* processor = (libnjkafka_ConsumerRecordProcessor*)print_message;
-    libnjkafka_BatchResults results = libnjkafka_consumer_poll_each_message(consumer2, 100, processor, opaque);
+    libnjkafka_BatchResults results = libnjkafka_consumer_poll_each_message(consumer2, 5000, processor, opaque);
 
     if(results.success_count != DEFAULT_EXPECTED_MESSAGE_COUNT) {
       printf(RED "libnjkafka_consumer_poll_each_message Error: Expected %d, got %d\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT, results.success_count);
