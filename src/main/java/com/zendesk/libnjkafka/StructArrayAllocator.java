@@ -36,16 +36,17 @@ public class StructArrayAllocator<A> {
     // }
 
     private int itemCount;
-    private int arrayStructMemorySize;
-    private int structMemorySize;
+    private UnsignedWord arrayStructMemorySize;
+    private UnsignedWord structMemorySize;
     private BiConsumer<A, StructArrayAllocator<A>> consumer;
     private Pointer itemsStartPointer;
     private int index;
     private Iterator<A> objIter;
     private Pointer arrayStructPointer;
     public A currentItem;
+    private ArrayWrapper arrayStruct;
 
-    public StructArrayAllocator(Iterator<A> objIter, int iteratorCount, int arrayStructMemorySize, int structMemorySize, BiConsumer<A, StructArrayAllocator<A>> consumer) {
+    public StructArrayAllocator(Iterator<A> objIter, int iteratorCount, UnsignedWord arrayStructMemorySize, UnsignedWord structMemorySize, BiConsumer<A, StructArrayAllocator<A>> consumer) {
         this.objIter = objIter;
         this.itemCount = iteratorCount;
         this.arrayStructMemorySize = arrayStructMemorySize;
@@ -56,28 +57,32 @@ public class StructArrayAllocator<A> {
     }
 
     public void allocate() {
-        int totalMemorySize = arrayStructMemorySize + structMemorySize * this.itemCount;
+        UnsignedWord totalMemorySize = arrayStructMemorySize.add(structMemorySize.multiply(this.itemCount));
         this.arrayStructPointer = UnmanagedMemory.calloc(totalMemorySize);
-        ArrayWrapper arrayStruct = (ArrayWrapper) this.arrayStructPointer;
+        this.arrayStruct = (ArrayWrapper) this.arrayStructPointer;
         this.itemsStartPointer = this.arrayStructPointer.add(arrayStructMemorySize);
 
+        System.out.println("Allocated Struct Array: totalMemorySize=" + totalMemorySize + ", arrayStructMemorySize=" + arrayStructMemorySize + ", structMemorySize=" + structMemorySize.multiply(this.itemCount));
+
         arrayStruct.setItems(this.itemsStartPointer);
-        arrayStruct.setCount(0);   
+        arrayStruct.setCount(0);
     }
 
     public Pointer populate() {
         while (this.objIter.hasNext()) {
             this.currentItem = this.objIter.next();
             this.index = this.index + 1;
+            System.out.println("Populating item index: " + this.index);
 
             this.consumer.accept(this.currentItem, this);
         }
 
+        this.arrayStruct.setCount(this.index + 1);
         return this.arrayStructPointer;
     }
 
     public PointerBase currentStructPointer() {
-        Pointer offset = this.itemsStartPointer.add(this.structMemorySize * this.index);
+        Pointer offset = this.itemsStartPointer.add(this.structMemorySize.multiply(this.index));
         return offset;
     }
 

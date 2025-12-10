@@ -206,11 +206,13 @@ public class Entrypoints {
         Iterator<ConsumerRecord<String, String>> recordIter = records.iterator();
         int recordCount = records.count();
 
+        System.out.println("Polled " + recordCount + " records from consumerId=" + consumerId); 
+
         StructArrayAllocator<ConsumerRecord<String, String>> allocator = new StructArrayAllocator<>(
             recordIter,
             recordCount,
-            SizeOf.get(ConsumerRecordListLayout.class),
-            SizeOf.get(ConsumerRecordLayout.class),
+            SizeOf.unsigned(ConsumerRecordListLayout.class),
+            SizeOf.unsigned(ConsumerRecordLayout.class),
             (record, alloc) -> {
                 ConsumerRecordLayout recordStruct = (ConsumerRecordLayout) alloc.structPointer();
 
@@ -219,10 +221,30 @@ public class Entrypoints {
                 recordStruct.setTimestamp(record.timestamp());
                 recordStruct.setKey(alloc.cString(record.key()));
                 recordStruct.setTopic(alloc.cString(record.topic()));
+                recordStruct.setValue(toCString(record.value()));
             }
         );
 
-        ConsumerRecordListLayout cRecordListStruct = (ConsumerRecordListLayout) allocator.populate();
+        // ConsumerRecordListLayout cRecordListStructBad = (ConsumerRecordListLayout) allocator.populate();
+
+
+        ConsumerRecordListLayout cRecordListStruct = MemoryIterator.allocateAndPopulateStructArray(
+            records.count(),
+            ConsumerRecordListLayout.class,
+            ConsumerRecordLayout.class,
+            iterator -> {
+                for (ConsumerRecord<String, String> record : records) {
+                    ConsumerRecordLayout recordStruct = iterator.next();
+
+                    recordStruct.setOffset(record.offset());
+                    recordStruct.setPartition(record.partition());
+                    recordStruct.setTimestamp(record.timestamp());
+                    recordStruct.setKey(toCString(record.key()));
+                    recordStruct.setTopic(toCString(record.topic()));
+                    recordStruct.setValue(toCString(record.value()));
+                }
+            }
+        );
 
         return cRecordListStruct;
     }
@@ -314,38 +336,38 @@ public class Entrypoints {
         }
     }
 
-    public static CCharPointer allocCstr(PointerBase freeWith, String string) {
-        CCharPointerHolder cStringHolder = CTypeConversion.toCString(string);
-        CCharPointer cString = cStringHolder.get();
-        long pointerAddress = cString.rawValue();
-        cStringRegistry.put(pointerAddress, cStringHolder);
-        pointerGraph.addDependency(freeWith.rawValue(), pointerAddress);
-        return cString;
-    }
+    // public static CCharPointer allocCstr(PointerBase freeWith, String string) {
+    //     CCharPointerHolder cStringHolder = CTypeConversion.toCString(string);
+    //     CCharPointer cString = cStringHolder.get();
+    //     long pointerAddress = cString.rawValue();
+    //     cStringRegistry.put(pointerAddress, cStringHolder);
+    //     pointerGraph.addDependency(freeWith.rawValue(), pointerAddress);
+    //     return cString;
+    // }
 
-    private static Pointer calloc(UnsignedWord size) {
-        Pointer pointer = UnmanagedMemory.calloc(size);
-        pointerGraph.addNode(pointer.rawValue());
-        return pointer;
-    }
+    // private static Pointer calloc(UnsignedWord size) {
+    //     Pointer pointer = UnmanagedMemory.calloc(size);
+    //     pointerGraph.addNode(pointer.rawValue());
+    //     return pointer;
+    // }
 
-    private static void free(PointerBase pointer) {
-        long ptr = pointer.rawValue();
-        Set<Long> dependents = pointerGraph.getDependents(ptr);
+    // private static void free(PointerBase pointer) {
+    //     long ptr = pointer.rawValue();
+    //     Set<Long> dependents = pointerGraph.getDependents(ptr);
         
-        dependents.forEach(dependent -> {
-            CCharPointerHolder stringHolder = cStringRegistry.get(dependent);
-            if (stringHolder != null) {
-                stringHolder.close();
-                cStringRegistry.remove(dependent);
-            } else {
-                UnmanagedMemory.free(WordFactory.pointer(dependent));
-                freePointers.add(dependent);
-            }
-        });
-        UnmanagedMemory.free(pointer);
-        freePointers.add(ptr);
-    }
+    //     dependents.forEach(dependent -> {
+    //         CCharPointerHolder stringHolder = cStringRegistry.get(dependent);
+    //         if (stringHolder != null) {
+    //             stringHolder.close();
+    //             cStringRegistry.remove(dependent);
+    //         } else {
+    //             UnmanagedMemory.free(WordFactory.pointer(dependent));
+    //             freePointers.add(dependent);
+    //         }
+    //     });
+    //     UnmanagedMemory.free(pointer);
+    //     freePointers.add(ptr);
+    // }
 
     private static CCharPointer toCString(String javaString) {
         CCharPointerHolder cStringHolder = CTypeConversion.toCString(javaString);
