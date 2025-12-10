@@ -8,6 +8,9 @@ import java.util.function.Consumer;
 
 import org.graalvm.word.WordFactory;
 import org.graalvm.nativeimage.UnmanagedMemory;
+import org.graalvm.nativeimage.c.type.CCharPointer;
+import org.graalvm.nativeimage.c.type.CTypeConversion;
+import org.graalvm.nativeimage.c.type.CTypeConversion.CCharPointerHolder;
 
 import com.zendesk.libnjkafka.Structs.ArrayWrapper;
 
@@ -18,6 +21,7 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     private UnsignedWord structSize;
     private Pointer itemsPointer;
     private A arrayStructPointer;
+    public static final CCharPointerRegistry stringRegistry = new CCharPointerRegistry();
 
     public static <A extends PointerBase, I extends PointerBase> A allocateAndPopulateStructArray(
             int itemCount, Class<A> arrayStructClass, Class<I> itemStructClass,
@@ -61,6 +65,7 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     @SuppressWarnings("unchecked")
     private void allocateMemory() {
         UnsignedWord totalMemorySize = this.arrayStructSize.add(this.structSize.multiply(this.itemCount));
+        System.out.println("  ✨✨✨ GraalVM allocating memory for struct array: itemCount=" + this.itemCount + ", totalMemorySize=" + totalMemorySize.rawValue());
 
         Pointer chunk = UnmanagedMemory.calloc(totalMemorySize);
 
@@ -72,6 +77,13 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
         } else {
          this.itemsPointer = chunk.add(this.arrayStructSize);
         }
+    }
+
+    public CCharPointer cString(String javaString) {
+        CCharPointerHolder cStringHolder = CTypeConversion.toCString(javaString);
+        MemoryIterator.stringRegistry.put(this.arrayStructPointer.rawValue(), cStringHolder);
+        CCharPointer cString = cStringHolder.get();
+        return cString;
     }
 
     public A finalizeArrayStruct() {
