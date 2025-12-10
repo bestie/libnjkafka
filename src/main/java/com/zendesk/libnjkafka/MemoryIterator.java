@@ -4,6 +4,8 @@ import org.graalvm.word.Pointer;
 import org.graalvm.word.PointerBase;
 import org.graalvm.word.UnsignedWord;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import org.graalvm.word.WordFactory;
@@ -21,7 +23,11 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     private UnsignedWord structSize;
     private Pointer itemsPointer;
     private A arrayStructPointer;
+    private Class<A> arrayStructClass;
+    private ArrayList<CCharPointerHolder> cStringHolders;
+
     public static final CCharPointerRegistry stringRegistry = new CCharPointerRegistry();
+    public static int stringCount = 0;
 
     public static <A extends PointerBase, I extends PointerBase> A allocateAndPopulateStructArray(
             int itemCount, Class<A> arrayStructClass, Class<I> itemStructClass,
@@ -31,9 +37,32 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
         return iterator.finalizeArrayStruct();
     }
 
+    public static void free(PointerBase cStruct) {
+        freeCStrings(cStruct);
+        UnmanagedMemory.free(cStruct);
+    }
+
+    private static void freeCStrings(PointerBase cStruct) {
+        long pointerAddress = cStruct.rawValue();
+        List<CCharPointerHolder> holders = stringRegistry.get(pointerAddress);
+
+        if (holders == null) {
+            throw new IllegalStateException("Pointer address " + pointerAddress + " not found in registry, wasn't allocated from LibNJKafka.");
+        }
+        
+        System.out.println("  🕊️ 🆓 Freeing " + holders.size() + " C strings for struct at pointer address " + pointerAddress);
+        
+        for (CCharPointerHolder holder : holders ) {
+            holder.close();
+        }
+
+        stringRegistry.remove(pointerAddress);
+    }
+
     public MemoryIterator(int itemCount, Class<A> arrayStructClass, Class<I> itemStructClass) {
         this.itemCount = itemCount;
         this.i = 0;
+        this.arrayStructClass = arrayStructClass;
         this.structSize = StructSizeRegistry.get(itemStructClass);
         this.arrayStructSize = StructSizeRegistry.get(arrayStructClass);
         allocateMemory();
@@ -65,9 +94,13 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     @SuppressWarnings("unchecked")
     private void allocateMemory() {
         UnsignedWord totalMemorySize = this.arrayStructSize.add(this.structSize.multiply(this.itemCount));
-        System.out.println("  ✨✨✨ GraalVM allocating memory for struct array: itemCount=" + this.itemCount + ", totalMemorySize=" + totalMemorySize.rawValue());
 
         Pointer chunk = UnmanagedMemory.calloc(totalMemorySize);
+
+        System.out.println("  ✨✨✨ GraalVM allocating memory for struct array: " + this.arrayStructClass.getSimpleName() + " itemCount=" + this.itemCount + ", totalMemorySize=" + totalMemorySize.rawValue() + " pointer=" + chunk.rawValue());
+        this.cStringHolders = new ArrayList<>();
+        stringRegistry.put(chunk.rawValue(), this.cStringHolders);
+
 
         this.arrayStructPointer = (A) chunk;
 
@@ -75,14 +108,15 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
             //System.out.println("MemoryIterator: itemCount is 0, setting itemsPointer to null");
             this.itemsPointer = WordFactory.nullPointer();
         } else {
-         this.itemsPointer = chunk.add(this.arrayStructSize);
+            this.itemsPointer = chunk.add(this.arrayStructSize);
         }
     }
 
     public CCharPointer cString(String javaString) {
         CCharPointerHolder cStringHolder = CTypeConversion.toCString(javaString);
-        MemoryIterator.stringRegistry.put(this.arrayStructPointer.rawValue(), cStringHolder);
+        this.cStringHolders.add(cStringHolder);
         CCharPointer cString = cStringHolder.get();
+        MemoryIterator.stringCount++;
         return cString;
     }
 
@@ -92,6 +126,8 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
         ArrayWrapper wrapper = (ArrayWrapper) this.arrayStructPointer;
         wrapper.setCount(this.itemCount);
         wrapper.setItems(this.itemsPointer);
+
+        System.out.println("  ✨✨✨ GraalVM finalized struct array: itemCount=" + this.itemCount + ", cString count=" + this.cStringHolders.size());
 
         return this.arrayStructPointer;
     }

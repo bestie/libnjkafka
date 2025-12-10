@@ -50,6 +50,7 @@ int libnjkafka_teardown_thread() {
 }
 
 int libnjkafka_teardown() {
+    libnjkafka_java_teardown(graalvm_thread_isolate);
     int result = graal_tear_down_isolate(graalvm_thread_isolate);
     if (result != 0) {
         fprintf(stderr, "Failed tear down GraalVM isolate (code %d)\n", result);
@@ -58,7 +59,7 @@ int libnjkafka_teardown() {
 }
 
 void libnjkafka_free(void* pointer) {
-    libnjkafka_java_free_unmanaged_memory(graalvm_thread_isolate, pointer);
+    libnjkafka_java_free(graalvm_thread_isolate, pointer);
 }
 
 libnjkafka_Producer* libnjkafka_create_producer(libnjkafka_ProducerConfig* config) {
@@ -81,7 +82,6 @@ int libnjkafka_producer_send(libnjkafka_Producer* producer, libnjkafka_ProducerR
 
 int libnjkafka_producer_close(libnjkafka_Producer* producer) {
     long result = libnjkafka_java_producer_close(graalvm_thread_isolate, producer->id);
-    // libnjkafka_free(producer);
 
     return result;
 }
@@ -185,24 +185,26 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
 }
 
 void libnjkafka_consumer_free(libnjkafka_Consumer* consumer) {
-    // libnjkafka_free(consumer);
+    printf("Freeing libnjkafka_Consumer ... 🕊️🆓 \n");
+    libnjkafka_free(consumer);
 }
 
 void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list) {
-    // libnjkafka_java_free_consumer_record_list(graalvm_thread_isolate, list);
+    printf("  🕊️ 🆓 Freeing libnjkafka_ConsumerRecord_List ...\n");
+    libnjkafka_free(list);
 }
 
 void libnjkafka_free_ProducerRecord(libnjkafka_ProducerRecord* record) {
-    libnjkafka_free(record->key);
-    libnjkafka_free(record->topic);
-    libnjkafka_free(record->value);
+    printf("Freeing ConsumerRecord_List ... 🕊️🆓 \n");
     libnjkafka_free(record);
 }
 
 void libnjkafka_free_TopicPartition_List(libnjkafka_TopicPartition_List* list) {
+    printf("  🕊️ 🆓 Freeing libnjkafka_TopicPartition_List ...\n");
     libnjkafka_free(list);
 }
 
 void libnjkafka_free_TopicPartitionOffsetAndMetadata_List(libnjkafka_TopicPartitionOffsetAndMetadata_List* list) {
+    printf("  🕊️ 🆓 Freeing libnjkafka_TopicPartitionOffsetAndMetadata_List ...\n");
     libnjkafka_free(list);
 }

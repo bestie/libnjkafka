@@ -1,24 +1,38 @@
 package com.zendesk.libnjkafka;
 
 import java.util.HashMap;
+import java.util.List;
+
 import org.graalvm.nativeimage.c.type.CTypeConversion.CCharPointerHolder;
 
 public class CCharPointerRegistry {
-    private HashMap<Long, CCharPointerHolder> registry = new HashMap<>();
+    private HashMap<Long, List<CCharPointerHolder>> map;
 
-    public void put(long pointerAddress, CCharPointerHolder cStringHolder) {
-        registry.put(pointerAddress, cStringHolder);
+    public CCharPointerRegistry() {
+        this.map = new HashMap<>();
     }
 
-    public CCharPointerHolder get(long pointerAddress) {
-        return registry.get(pointerAddress);
+    public void put(long pointerAddress, List<CCharPointerHolder> cStringHolders) {
+        map.put(pointerAddress, cStringHolders);
+    }
+
+    public List<CCharPointerHolder> get(long pointerAddress) {
+        return map.get(pointerAddress);
     }
 
     public void remove(long pointerAddress) {
-        registry.remove(pointerAddress);
+        map.remove(pointerAddress);
     }
 
     public int size() {
-        return registry.size();
+        return map.size();
+    }
+
+    public int sumOfCounts() {
+        int sum = 0;
+        for (List<CCharPointerHolder> holders : map.values()) {
+            sum += holders.size();
+        }
+        return sum;
     }
 }
