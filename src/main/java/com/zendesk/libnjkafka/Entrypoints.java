@@ -246,7 +246,7 @@ public class Entrypoints {
 
         if( unfreedPointerCount > 0 ) {
             System.out.println("   Unfreed struct counts by type:");
-            HashMap<String, Integer> countsByType = new HashMap<>();)
+            HashMap<String, Integer> countsByType = new HashMap<>();
             for (Map.Entry<Long, String> entry : MemoryIterator.labelRegistry.entrySet()) {
                 String typeName = entry.getValue();
                 countsByType.put(typeName, countsByType.getOrDefault(typeName, 0) + 1);
