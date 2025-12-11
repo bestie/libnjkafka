@@ -5,6 +5,7 @@ import org.graalvm.word.PointerBase;
 import org.graalvm.word.UnsignedWord;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -27,6 +28,9 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
     private ArrayList<CCharPointerHolder> cStringHolders;
 
     public static final CCharPointerRegistry stringRegistry = new CCharPointerRegistry();
+    public static HashMap<Long, String> labelRegistry = new HashMap<>();
+
+    public static int allocationCount = 0;
     public static int stringCount = 0;
 
     public static <A extends PointerBase, I extends PointerBase> A allocateAndPopulateStructArray(
@@ -57,6 +61,7 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
         }
 
         stringRegistry.remove(pointerAddress);
+        labelRegistry.remove(pointerAddress);
     }
 
     public MemoryIterator(int itemCount, Class<A> arrayStructClass, Class<I> itemStructClass) {
@@ -96,11 +101,12 @@ public class MemoryIterator<A extends PointerBase, I extends PointerBase> {
         UnsignedWord totalMemorySize = this.arrayStructSize.add(this.structSize.multiply(this.itemCount));
 
         Pointer chunk = UnmanagedMemory.calloc(totalMemorySize);
+        allocationCount++;
 
         System.out.println("  ✨✨✨ GraalVM allocating memory for struct array: " + this.arrayStructClass.getSimpleName() + " itemCount=" + this.itemCount + ", totalMemorySize=" + totalMemorySize.rawValue() + " pointer=" + chunk.rawValue());
         this.cStringHolders = new ArrayList<>();
         stringRegistry.put(chunk.rawValue(), this.cStringHolders);
-
+        labelRegistry.put(chunk.rawValue(), this.arrayStructClass.getSimpleName());
 
         this.arrayStructPointer = (A) chunk;
 

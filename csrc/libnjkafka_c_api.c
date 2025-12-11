@@ -145,7 +145,7 @@ libnjkafka_BatchResults libnjkafka_consumer_poll_each_message(libnjkafka_Consume
         printf("Processed %d of %d messages successfully\n", results.success_count, results.total_records);
     }
 
-    // libnjkafka_free(records);
+    libnjkafka_free(records);
     return results;
 }
 

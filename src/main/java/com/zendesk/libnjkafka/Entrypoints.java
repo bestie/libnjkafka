@@ -1,6 +1,7 @@
 package com.zendesk.libnjkafka;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -238,9 +239,22 @@ public class Entrypoints {
         int unfreedPointerCount = MemoryIterator.stringRegistry.size();
         int unfreeStringCount = MemoryIterator.stringRegistry.sumOfCounts();
         int totalStringCount = MemoryIterator.stringCount;
+
         System.out.println("      Unfreed pointer count = " + unfreedPointerCount);
         System.out.println("      Unfreed string count = " + unfreeStringCount);
         System.out.println("      MemoryIterator.stringCount = " + totalStringCount);
+
+        if( unfreedPointerCount > 0 ) {
+            System.out.println("   Unfreed struct counts by type:");
+            HashMap<String, Integer> countsByType = new HashMap<>();)
+            for (Map.Entry<Long, String> entry : MemoryIterator.labelRegistry.entrySet()) {
+                String typeName = entry.getValue();
+                countsByType.put(typeName, countsByType.getOrDefault(typeName, 0) + 1);
+            }
+            for (Map.Entry<String, Integer> entry : countsByType.entrySet()) {
+                System.out.println("      " + entry.getKey() + " : " + entry.getValue());
+            }
+        }
     }
 
     public static Properties configToProps(ProducerConfigLayout config) {
