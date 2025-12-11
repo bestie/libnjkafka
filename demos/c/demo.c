@@ -53,6 +53,7 @@ void partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic
       assigned_partitions[topic_partitions->items[i].partition] = 1;
     }
     assigned_partitions_opaque = opaque;
+    libnjkafka_free_TopicPartition_List(topic_partitions);
 }
 void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("👂Revoked partitions: %d\n", topic_partitions->count);
@@ -62,12 +63,14 @@ void partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_
       revoked_partitions[topic_partitions->items[i].partition] = 1;
     }
     revoked_partitions_opaque = opaque;
+    libnjkafka_free_TopicPartition_List(topic_partitions);
 }
 
 void partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("👂Lost partitions: %d\n", topic_partitions->count);
     char event[8] = "lost";
     print_partitions(event, topic_partitions, opaque);
+    libnjkafka_free_TopicPartition_List(topic_partitions);
 }
 
 bool ensure_partitions_assigned_callback_called_with_all_partitions_and_opaque(void* expected_opaque) {
@@ -126,6 +129,7 @@ void consumer_poll(libnjkafka_Consumer* consumer) {
 
       libnjkafka_TopicPartition_List* topic_partitions = libnjkafka_consumer_assignment(consumer);
       printf(" 🧵 thread-%d Consumer#assigned partitions: %d\n", thread_n, topic_partitions->count);
+      libnjkafka_free_TopicPartition_List(topic_partitions);
       libnjkafka_consumer_commit_all_sync(consumer, 1000);
       usleep(500000);
     }
