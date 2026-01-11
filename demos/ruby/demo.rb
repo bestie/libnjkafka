@@ -71,7 +71,7 @@ offsets = []
 
 if ENV["RUN_BATCH_POLL_RETURN"]
   benchmarks["Poll & Process (Batch return)"] = Benchmark.measure do
-    records = consumer.poll(2000)
+    records = consumer.poll(5000)
     records.each do |record|
       offsets << [record.partition, record.offset]
       print "."
@@ -79,7 +79,7 @@ if ENV["RUN_BATCH_POLL_RETURN"]
   end
 else
   benchmarks["Poll & Process (each message block)"] = Benchmark.measure do
-    consumer.poll_each_message(2000) do |record|
+    consumer.poll_each_message(5000) do |record|
       offsets << [record.partition, record.offset]
       print "."
     end

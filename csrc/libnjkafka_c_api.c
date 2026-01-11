@@ -185,8 +185,8 @@ int libnjkafka_consumer_close(libnjkafka_Consumer* consumer) {
 }
 
 void libnjkafka_consumer_free(libnjkafka_Consumer* consumer) {
-    printf("Freeing libnjkafka_Consumer ... 🕊️🆓 \n");
-    libnjkafka_free(consumer);
+    // printf("Freeing libnjkafka_Consumer ... 🕊️🆓 \n");
+    // libnjkafka_free(consumer);
 }
 
 void libnjkafka_free_ConsumerRecord_List(libnjkafka_ConsumerRecord_List* list) {
