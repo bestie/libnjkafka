@@ -65,7 +65,13 @@ jobs:
         path: build/
 
     - name: Run the demo/test program
-      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make c-demo
+      run: |
+        docker run --network=host --rm \
+          --volume ${{ github.workspace }}:/libnjkafka \
+          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+          ${{ env.DOCKER_TAG }} \
+          make c-demo
 
     - name: Build the Docker image for the Ruby C extension
       run: |
@@ -78,4 +84,10 @@ jobs:
           .
 
     - name: Compile the Ruby C extension and run the demo program
-      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }}-ruby make ruby-demo
+      run: |
+        docker run --network=host --rm \
+          --volume ${{ github.workspace }}:/libnjkafka \
+          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+          ${{ env.DOCKER_TAG }}-ruby \
+          make ruby-demo
