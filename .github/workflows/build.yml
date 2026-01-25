@@ -13,7 +13,7 @@ jobs:
     env:
       DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
       KAFKA_TOPIC: kafka-build-topic
-      KAFKA_BROKERS: host.docker.internal:9092
+      KAFKA_BROKERS: localhost:9092
 
     steps:
     - uses: actions/checkout@v4
