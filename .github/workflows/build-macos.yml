@@ -13,14 +13,14 @@ jobs:
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
-      KAFKA_HOME: "./lib/kafka"
+      KAFKA_HOME: "${{ github.workspace }}/lib/kafka"
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Install Homebrew dependencies
       run: |
-        env HOMEBREW_NO_AUTO_UPDATE=1 brew install kafka
+        env HOMEBREW_NO_AUTO_UPDATE=1 brew install kafka coreutils
 
     - name: Start the broker
       run: brew services start kafka
@@ -32,14 +32,15 @@ jobs:
         native-image-job-reports: "true"
 
     - name: Download Apache Kafka Java library
-      run: ./scripts/download_java_libs.sh
+      run: |
+        ./scripts/download_java_libs.sh
+        echo "$KAFKA_HOME/bin" >> $GITHUB_PATH
+
 
     - name: Build the library
       run:
-        export PATH="$PATH:$KAFKA_HOME/bin"
         make
 
     - name: Run the demo/test program
       run: |
-        export PATH="$PATH:$KAFKA_HOME/bin"
         make c-demo
