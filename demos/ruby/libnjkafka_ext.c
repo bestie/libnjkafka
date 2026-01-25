@@ -1,16 +1,31 @@
 #include <ruby.h>
-#include "libnjkafka.h"  // Assuming you have the libnjkafka header file available
+#include <ruby/util.h>
+#include <ruby/thread.h>
+#include <pthread.h>
+#include <unistd.h>
+#include "libnjkafka.h"
 #include "libnjkafka_callbacks.h"
-
-typedef struct {
-    libnjkafka_Consumer* consumer_ref;
-} Consumer;
 
 typedef struct {
     VALUE listener_obj;
     VALUE consumer_obj;
 } RebalanceListenerOpaque;
 
+typedef struct {
+    VALUE listener_obj;
+    const char* method_name;
+    libnjkafka_TopicPartition_List* topic_partition_list;
+} RebalanceEvent;
+
+
+typedef struct {
+    libnjkafka_Consumer* consumer_ref;
+    bool closed;
+    void* pending_rebalance_event;
+    bool queue_rebalance_events;
+    RebalanceEvent** rebalance_queue;
+    int rebalance_queue_size;
+} Consumer;
 
 static void consumer_free(VALUE consumer) {
     // not necessary
@@ -38,11 +53,12 @@ VALUE consumer_record_list_class;
 #define ON_PARTITIONS_ASSIGNED "on_partitions_assigned"
 #define ON_PARTITIONS_REVOKED "on_partitions_revoked"
 #define ON_PARTITIONS_LOST "on_partitions_lost"
+#define MAX_REBALANCE_EVENTS 32
 
 // Helper methods
 static char* get_hash_string_value(VALUE hash, const char* key) {
     VALUE val = rb_hash_aref(hash, ID2SYM(rb_intern(key)));
-    return NIL_P(val) ? NULL : strdup(StringValueCStr(val));
+    return NIL_P(val) ? NULL : ruby_strdup(StringValueCStr(val));
 }
 
 static int get_hash_int_value(VALUE hash, const char* key) {
@@ -55,15 +71,12 @@ static int get_hash_bool_value(VALUE hash, const char* key) {
     return NIL_P(val) ? 0 : RTEST(val);
 }
 
-static void call_listener_method(void* rb_objs, const char* method_name, libnjkafka_TopicPartition_List* topic_partitions) {
-    VALUE target_method = rb_intern(method_name);
-    if(rb_objs == NULL) return;
+static void call_rebalance_listener(RebalanceEvent* event, VALUE consumer_obj) {
+    VALUE target_method = rb_intern(event->method_name);
+    VALUE listener_obj = event->listener_obj;
+    libnjkafka_TopicPartition_List* topic_partitions = event->topic_partition_list;
 
-    RebalanceListenerOpaque* rlbo = (RebalanceListenerOpaque*)rb_objs;
-    VALUE listener_obj = rlbo->listener_obj;
-    VALUE consumer_obj = rlbo->consumer_obj;
-
-    if(!rb_respond_to(listener_obj, rb_intern(method_name))) return;
+    if(!rb_respond_to(listener_obj, target_method)) return;
 
     VALUE rb_array = rb_ary_new2(topic_partitions->count);
     for (int i = 0; i < topic_partitions->count; i++) {
@@ -78,34 +91,60 @@ static void call_listener_method(void* rb_objs, const char* method_name, libnjka
     VALUE rb_topic_parition_list = rb_funcall(topic_partition_list_class, rb_intern("new"), 1, rb_array);
 
     rb_funcall(listener_obj, target_method, 2, consumer_obj, rb_topic_parition_list);
+
+    xfree(event);
     libnjkafka_free_TopicPartition_List(topic_partitions);
 }
 
-static void on_partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+static void add_pending_rebalance_event(const char* method_name, libnjkafka_TopicPartition_List* topic_partition_list, void* opaque) {
+    RebalanceListenerOpaque* rlbo = (RebalanceListenerOpaque*)opaque;
+
+    RebalanceEvent* event = ALLOC(RebalanceEvent);
+    event->listener_obj = rlbo->listener_obj;
+    event->topic_partition_list = topic_partition_list;
+    event->method_name = method_name;
+
+    Consumer* consumer;
+    TypedData_Get_Struct(rlbo->consumer_obj, Consumer, &consumer_data_type, consumer);
+
+    if(consumer->queue_rebalance_events) {
+        if(consumer->rebalance_queue_size < MAX_REBALANCE_EVENTS) {
+            consumer->rebalance_queue[consumer->rebalance_queue_size] = event;
+            consumer->rebalance_queue_size++;
+        } else {
+            fprintf(stderr, "Dropped rebalance event. Too many rebalance events in queue.");
+        }
+    } else {
+        call_rebalance_listener(event, rlbo->consumer_obj);
+    }
+}
+
+static void on_partitions_assigned(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("C-EXT Assigned partitions: %d\n", topic_partitions->count);
     for(int i=0; i<topic_partitions->count; i++) {
       printf(" C-EXT 👂👂👂 assigned Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
     }
 
-    call_listener_method(rb_objs, ON_PARTITIONS_ASSIGNED, topic_partitions);
+    add_pending_rebalance_event(ON_PARTITIONS_ASSIGNED, topic_partitions, opaque);
 }
 
-static void on_partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+static void on_partitions_revoked(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("C-EXT Revoked partitions: %d\n", topic_partitions->count);
     for(int i=0; i<topic_partitions->count; i++) {
       printf(" C-EXT 👂👂👂 revoked Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
     }
 
-    call_listener_method(rb_objs, ON_PARTITIONS_REVOKED, topic_partitions);
+    add_pending_rebalance_event(ON_PARTITIONS_REVOKED, topic_partitions, opaque);
+
 }
 
-static void on_partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* rb_objs) {
+static void on_partitions_lost(void* gvm_thread, libnjkafka_TopicPartition_List* topic_partitions, void* opaque) {
     printf("C-EXT Lost partitions: %d\n", topic_partitions->count);
     for(int i=0; i<topic_partitions->count; i++) {
       printf(" C-EXT 👂👂👂 lost Topic `%s`, Partition: %d\n", topic_partitions->items[i].topic, topic_partitions->items[i].partition);
     }
 
-    call_listener_method(rb_objs, ON_PARTITIONS_LOST, topic_partitions);
+    add_pending_rebalance_event(ON_PARTITIONS_LOST, topic_partitions, opaque);
 }
 
 libnjkafka_ConsumerConfig hash_to_consumer_config(VALUE hash) {
@@ -195,13 +234,63 @@ static VALUE consumer_record_to_rb(libnjkafka_ConsumerRecord record) {
     return cr;
 }
 
+typedef struct {
+    libnjkafka_Consumer* consumer;
+    int timeout;
+    libnjkafka_ConsumerRecord_List* results;
+} poll_t;
+
+static void* poll_into_struct(void* opaque) {
+    poll_t* poll = (poll_t*)opaque;
+    poll->results = libnjkafka_consumer_poll(poll->consumer, poll->timeout);
+
+    return opaque;
+}
+
+static void consumer_enable_rebalance_queue(Consumer* consumer) {
+    RebalanceEvent** queue = ALLOC_N(RebalanceEvent*, MAX_REBALANCE_EVENTS);
+    consumer->rebalance_queue = queue;
+    consumer->rebalance_queue_size = 0;
+    consumer->queue_rebalance_events = true;
+}
+
+static void consumer_disable_rebalance_queue(Consumer* consumer) {
+    consumer->queue_rebalance_events = false;
+    consumer->rebalance_queue_size = 0;
+    consumer->rebalance_queue = NULL;
+    xfree(consumer->rebalance_queue);
+}
+
 static VALUE consumer_poll(VALUE self, VALUE timeout) {
     Consumer* consumer;
     TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
     Check_Type(timeout, T_FIXNUM);
     int c_timeout = NUM2INT(timeout);
 
-    libnjkafka_ConsumerRecord_List* record_list = libnjkafka_consumer_poll(consumer->consumer_ref, c_timeout);
+    consumer_enable_rebalance_queue(consumer);
+    poll_t poll = {
+        .consumer = consumer->consumer_ref,
+        .timeout = c_timeout,
+    };
+
+    libnjkafka_init_thread();
+    rb_funcall(module, rb_intern("ensure_current_thread_teardown"), 0);
+
+    rb_thread_call_without_gvl(
+        poll_into_struct,
+        &poll,
+        RUBY_UBF_IO,
+        NULL
+    );
+
+    libnjkafka_ConsumerRecord_List* record_list = poll.results;
+
+    printf("⚖️⚖️⚖️ There are %d rebalance event(s)\n", consumer->rebalance_queue_size);
+    for(int i=0; i < consumer->rebalance_queue_size; i++) {
+        call_rebalance_listener(consumer->rebalance_queue[i], self);
+    }
+
+    consumer_disable_rebalance_queue(consumer);
 
     VALUE array = rb_ary_new2(record_list->count);
     for (int i = 0; i < record_list->count; i++) {
@@ -285,6 +374,8 @@ static VALUE create_consumer(VALUE self, VALUE config_hash) {
 
     Consumer* consumer = ALLOC(Consumer);
     consumer->consumer_ref = consumer_ref;
+    consumer->rebalance_queue_size = 0;
+    consumer->queue_rebalance_events = false;
 
     return TypedData_Wrap_Struct(consumer_class, &consumer_data_type, consumer);
 }
@@ -292,7 +383,6 @@ static VALUE create_consumer(VALUE self, VALUE config_hash) {
 static VALUE consumer_close(VALUE self) {
     Consumer* consumer;
     TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
-
 
     int result = libnjkafka_consumer_close(consumer->consumer_ref);
     if (result != 0) {
@@ -302,13 +392,23 @@ static VALUE consumer_close(VALUE self) {
     return Qnil;
 }
 
-static void teardown(VALUE data) {
+static void end_proc_teardown(VALUE data) {
     libnjkafka_teardown();
+}
+
+static VALUE mod_teardown(VALUE value) {
+    libnjkafka_teardown();
+    return value;
+}
+
+static VALUE mod_teardown_current_thread(VALUE value) {
+    libnjkafka_teardown_thread();
+    return value;
 }
 
 void Init_libnjkafka_ext() {
     libnjkafka_init();
-    rb_set_end_proc(teardown, Qnil);
+    rb_set_end_proc(end_proc_teardown, Qnil);
 
     module = rb_define_module("LibNJKafka");
     consumer_class = rb_define_class_under(module, "Consumer", rb_cObject);
@@ -318,6 +418,8 @@ void Init_libnjkafka_ext() {
     consumer_record_list_class =  rb_define_class_under(module, "ConsumerRecordList", rb_cObject);
 
     rb_define_singleton_method(module, "create_consumer", create_consumer, 1);
+    rb_define_singleton_method(module, "teardown", mod_teardown, 0);
+    rb_define_singleton_method(module, "teardown_current_thread", mod_teardown_current_thread, 0);
 
     rb_define_alloc_func(consumer_class, consumer_alloc);
     rb_define_method(consumer_class, "initialize", consumer_initialize, 0);

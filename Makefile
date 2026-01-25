@@ -181,8 +181,7 @@ docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
-	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb && \
-	  RUN_BATCH_POLL_RETURN=1 KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb
+	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)

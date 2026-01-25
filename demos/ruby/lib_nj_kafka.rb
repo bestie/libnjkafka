@@ -2,6 +2,29 @@ require "forwardable"
 require File.join(ENV.fetch("C_EXT_PATH"), "libnjkafka_ext")
 
 module LibNJKafka
+  module_function
+  def ensure_current_thread_teardown
+    return if Thread.current == Thread.main
+    return if Thread.current[:__LibNJKafka_tracer]
+
+    thread = Thread.current
+
+    tracer = TracePoint.new(:thread_end) {
+      teardown_current_thread
+    }
+
+    thread.thread_variable_set(:__LibNJKafka_tracer, tracer)
+    tracer.enable(target_thread: thread)
+
+    at_exit do
+      if thread.alive?
+        warn "LibNJKafka: thread found alive at exit. Gracefully shutdown threads that have executed LibNJKafka code to avoid issues. thread=#{thread.inspect}"
+        thread.terminate
+        thread.join
+      end
+    end
+  end
+
   class Consumer
     def subscribe(topic, rebalance_listener: nil)
       cext_subscribe(topic, rebalance_listener)
@@ -9,8 +32,19 @@ module LibNJKafka
   end
 
   class TopicPartitionList
+    class << self
+      def from_name_and_numbers(name, numbers)
+        new(numbers.map { |n| TopicPartition.new(name, n) })
+      end
+    end
+
     def initialize(topic_partitions)
       @topic_partitions = topic_partitions
+    end
+    attr_reader :topic_partitions
+
+    def ==(other)
+      other.topic_partitions.sort == topic_partitions.sort
     end
 
     def to_a
@@ -35,9 +69,12 @@ module LibNJKafka
     attr_reader :topic, :partition
 
     def ==(other)
-      other.is_a?(TopicPartition) &&
-        other.topic == topic &&
+      other.topic == topic &&
         other.partition == partition
+    end
+
+    def <=>(other)
+      [other.topic, other.partition] <=> [topic, partition]
     end
   end
 
