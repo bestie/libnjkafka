@@ -11,6 +11,22 @@ typedef struct {
     VALUE consumer_obj;
 } RebalanceListenerOpaque;
 
+
+static void consumer_free(VALUE consumer) {
+    // not necessary
+}
+
+static const rb_data_type_t consumer_data_type = {
+    .wrap_struct_name = "Consumer",
+    .function = {
+        .dmark = NULL,
+        .dfree = (void (*)(void*))consumer_free,
+    },
+    .data = NULL,
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY
+};
+
+
 VALUE module;
 VALUE consumer_class;
 VALUE topic_partition_class;
@@ -121,7 +137,7 @@ libnjkafka_ConsumerConfig hash_to_consumer_config(VALUE hash) {
 
 static VALUE consumer_subscribe(VALUE self, VALUE kafka_topic, VALUE rb_rebalance_listener) {
     Consumer* consumer;
-    Data_Get_Struct(self, Consumer, consumer);
+    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
 
     Check_Type(kafka_topic, T_STRING);
     char* c_kafka_topic = StringValueCStr(kafka_topic);
@@ -181,7 +197,7 @@ static VALUE consumer_record_to_rb(libnjkafka_ConsumerRecord record) {
 
 static VALUE consumer_poll(VALUE self, VALUE timeout) {
     Consumer* consumer;
-    Data_Get_Struct(self, Consumer, consumer);
+    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
     Check_Type(timeout, T_FIXNUM);
     int c_timeout = NUM2INT(timeout);
 
@@ -205,13 +221,10 @@ static int poll_each_message_callback(libnjkafka_ConsumerRecord record, VALUE bl
     return 0;
 }
 
-static void consumer_free(VALUE consumer) {
-    // not necessary
-}
-
 static VALUE consumer_alloc(VALUE klass) {
     Consumer* consumer = ALLOC(Consumer);
-    return Data_Wrap_Struct(klass, NULL, consumer_free, consumer);
+    return TypedData_Wrap_Struct(consumer_class, &consumer_data_type, consumer);
+
 }
 
 static VALUE consumer_initialize(VALUE self) {
@@ -220,7 +233,7 @@ static VALUE consumer_initialize(VALUE self) {
 
 static VALUE consumer_commit_all_sync(VALUE self, VALUE timeout_ms) {
     Consumer* consumer;
-    Data_Get_Struct(self, Consumer, consumer);
+    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
 
     Check_Type(timeout_ms, T_FIXNUM);
     int c_timeout_ms = NUM2INT(timeout_ms);
@@ -233,21 +246,9 @@ static VALUE consumer_commit_all_sync(VALUE self, VALUE timeout_ms) {
     return Qnil;
 }
 
-static VALUE consumer_close(VALUE self) {
-    Consumer* consumer;
-    Data_Get_Struct(self, Consumer, consumer);
-
-    int result = libnjkafka_consumer_close(consumer->consumer_ref);
-    if (result != 0) {
-        rb_raise(rb_eRuntimeError, "Failed to close Kafka consumer");
-    }
-
-    return Qnil;
-}
-
 static VALUE consumer_poll_each_message(VALUE self, VALUE timeout_ms) {
     Consumer* consumer;
-    Data_Get_Struct(self, Consumer, consumer);
+    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
 
     rb_need_block();
     VALUE block = rb_block_proc();
@@ -285,7 +286,20 @@ static VALUE create_consumer(VALUE self, VALUE config_hash) {
     Consumer* consumer = ALLOC(Consumer);
     consumer->consumer_ref = consumer_ref;
 
-    return Data_Wrap_Struct(consumer_class, NULL, consumer_free, consumer);
+    return TypedData_Wrap_Struct(consumer_class, &consumer_data_type, consumer);
+}
+
+static VALUE consumer_close(VALUE self) {
+    Consumer* consumer;
+    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
+
+
+    int result = libnjkafka_consumer_close(consumer->consumer_ref);
+    if (result != 0) {
+        rb_raise(rb_eRuntimeError, "Failed to close Kafka consumer");
+    }
+
+    return Qnil;
 }
 
 static void teardown(VALUE data) {
@@ -313,37 +327,3 @@ void Init_libnjkafka_ext() {
     rb_define_method(consumer_class, "close", consumer_close, 0);
     rb_define_private_method(consumer_class, "cext_subscribe", consumer_subscribe, 2);
 }
-
-// // Migrate to TypedData_Make_Struct ???
-// 
-// // your struct
-// typedef struct {
-//   void *consumer_ref;
-// } Consumer;
-// 
-// static void consumer_free(void *p) { xfree(p); }
-// static size_t consumer_memsize(const void *p) { return sizeof(Consumer); }
-// // Only if you hold Ruby objects inside Consumer:
-// // static void consumer_mark(void *p) { rb_gc_mark(((Consumer*)p)->obj); }
-// 
-// static const rb_data_type_t consumer_type = {
-//   "Consumer",
-//   { /*mark*/0, consumer_free, consumer_memsize },
-//   0, 0, RUBY_TYPED_FREE_IMMEDIATELY
-// };
-// 
-// 
-// 
-// static VALUE consumer_alloc(VALUE klass) {
-//   Consumer *c;
-//   return TypedData_Make_Struct(klass, Consumer, &consumer_type, c);
-// }
-// 
-// static Consumer *get_consumer(VALUE self) {
-//   Consumer *c;
-//   TypedData_Get_Struct(self, Consumer, &consumer_type, c);
-//   return c;
-// }
-// 
-// // in Init_...
-// rb_define_alloc_func(consumer_class, consumer_alloc);
