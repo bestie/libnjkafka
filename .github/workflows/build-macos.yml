@@ -1,0 +1,45 @@
+name: Build and test
+
+on:
+  push:
+    branches: "*"
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: macos-latest
+
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Pull the docker-compose stack
+      run: docker compose pull --quiet
+
+    - name: Bring up docker-compose stack
+      run: docker compose up --detach
+
+    - uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: "25"
+        distribution: "graalvm"
+        native-image-job-reports: "true"
+
+    - name: Verify installations
+      run: |
+        echo "Java version:"
+        java --version
+        echo ""
+        echo "GraalVM version:"
+        native-image --version
+
+    - name: Ensure the broker is up
+      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
+
+    - name: Build the library
+      run: make
+
+    - name: Run the demo/test program
+      run: make c-demo
+
