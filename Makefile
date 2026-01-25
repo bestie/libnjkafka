@@ -140,8 +140,8 @@ build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos
 docker-make: build/scripts/docker-run
 	./build/scripts/docker-run make
 
-.PHONY: docker-demos
-docker-demos: build/scripts/docker-run
+.PHONY: docker-c-demo
+docker-c-demo: build/scripts/docker-run
 	./build/scripts/docker-run make c-demo
 
 .PHONY: docker-bash
@@ -181,15 +181,15 @@ docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
-	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build ruby --disable=gems demo.rb && \
-	  RUN_BATCH_POLL_RETURN=1 KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build ruby --disable=gems demo.rb
+	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb && \
+	  RUN_BATCH_POLL_RETURN=1 KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
 $(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
+	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) make
 
 .PHONY: ruby-make-file
 ruby-make-file: $(DEMO_DIR)/ruby/build/Makefile
@@ -211,7 +211,7 @@ c-demo: $(C_EXECUTABLE)
 	cd $(BUILD_DIR) && LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
 
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT)
-	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) \
+	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 	$(CC) $(C_FLAGS) \
 		-I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
 		-Wl,-rpath,@executable_path \
