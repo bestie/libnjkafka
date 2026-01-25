@@ -21,6 +21,9 @@ jobs:
       run: |
         env HOMEBREW_NO_AUTO_UPDATE=1 brew install kafka
 
+    - name: Start the broker
+      run: brew services start kafka
+
     - uses: graalvm/setup-graalvm@v1
       with:
         java-version: "25"
