@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
+      KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: host.docker.internal:9092
 
     steps:
     - uses: actions/checkout@v4
@@ -48,7 +50,13 @@ jobs:
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Build the library
-      run: docker run --network=host --rm --volume ${{ github.workspace }}:/libnjkafka ${{ env.DOCKER_TAG }} make
+      run: |
+        docker run --network=host --rm \
+          --volume ${{ github.workspace }}:/libnjkafka \
+          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+          ${{ env.DOCKER_TAG }} \
+          make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
