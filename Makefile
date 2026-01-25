@@ -71,10 +71,7 @@ lib: $(SHARED_LIBRARY_OBJECT)
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
 	$(CC) -shared -o $@ $(C_API_OBJECT) \
-		$(INSTALL_NAME_FLAGS) -L$(BUILD_DIR) -lnjkafka_core \
-		;
-		# -Wl,-soname,libnjkafka.so \
-		# && ldd $(SHARED_LIBRARY_OBJECT) | grep libnjkafka_core | grep -v "not found"
+		$(INSTALL_NAME_FLAGS) -L$(BUILD_DIR) -lnjkafka_core
 
 .PHONY: c-api
 c-api: $(C_API_OBJECT)
