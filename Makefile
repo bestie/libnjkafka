@@ -1,11 +1,21 @@
+
+GRAALVM_HOME ?=
+ifeq ($(GRAALVM_HOME),)
+$(warning GRAALVM_HOME is not set it to root of your GraalVM installation from which bin/native-image can be found.)
+endif
+
+PROJECT_HOME := $(CURDIR)
 OS := $(shell uname -s)
 PLATFORM := $(shell uname -m)
+BUILD_BASE_DIR = build
+BUILD_DIR = $(BUILD_BASE_DIR)/$(OS)-$(PLATFORM)
+
 ifeq ($(OS),Linux)
 	LIB_EXT = so
 	CC ?= gcc
 	PLATFORM_NATIVE_IMAGE_FLAGS =
 	INSTALL_NAME_FLAGS =
-	# C_DEMO_RPATH = # -Wl,-rpath,'$$ORIGIN'
+	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR)
 endif
 ifeq ($(OS),Darwin)
 	LIB_EXT = dylib
@@ -13,19 +23,8 @@ ifeq ($(OS),Darwin)
 	# Only macOS gets fast builds, don't @ me.
 	PLATFORM_NATIVE_IMAGE_FLAGS = "-Ob"
 	INSTALL_NAME_FLAGS = "-Wl,-install_name,@rpath/libnjkafka.dylib"
-	# C_DEMO_RPATH = # "-Wl,-rpath,@executable_path"
+	LD_LIBRARY_PATH=
 endif
-
-GRAALVM_HOME ?=
-ifeq ($(GRAALVM_HOME),)
-$(warning GRAALVM_HOME is not set it to root of your GraalVM installation from which bin/native-image can be found.)
-endif
-
-
-PROJECT_HOME := $(CURDIR)
-
-BUILD_BASE_DIR = build
-BUILD_DIR = $(BUILD_BASE_DIR)/$(OS)-$(PLATFORM)
 
 # JAVA compilation
 JAVA_HOME = $(GRAALVM_HOME)
@@ -212,12 +211,7 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
-	cd $(BUILD_DIR) && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
-
-# $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
-# 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) -L $(BUILD_DIR) -lnjkafka \
-# 		$(C_DEMO_RPATH) -o $(C_EXECUTABLE) \
-# 		$(DEMO_DIR)/c/demo.c
+	cd $(BUILD_DIR) && LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
 
 $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT)
 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) \
