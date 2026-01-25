@@ -127,12 +127,17 @@ build/scripts/docker-run: Makefile
 	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
+	@echo '  --env HISTFILE=/root/.bash_history/bash_history \\' >> $@
+	@echo '  --env HISTSIZE=10000 \\' >> $@
+	@echo '  --env HISTFILESIZE=100000 \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
+	@echo '  --volume libnjkafka-bash-history-vol:/root/.bash_history \\' >> $@
 	@echo '  $(DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
 
 build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
 	mkdir -p $(BUILD_BASE_DIR)
+	docker volume create libnjkafka-bash-history-vol
 	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
 .PHONY: docker-make
