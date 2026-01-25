@@ -17,11 +17,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Pull the docker-compose stack
-      run: docker compose pull --quiet
-
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
+    - name: Install Homebrew dependencies
+      run: |
+        env HOMEBREW_NO_AUTO_UPDATE=1 brew install kafka
 
     - uses: graalvm/setup-graalvm@v1
       with:
@@ -36,9 +34,6 @@ jobs:
         echo ""
         echo "GraalVM version:"
         native-image --version
-
-    - name: Ensure the broker is up
-      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Build the library
       run: make
