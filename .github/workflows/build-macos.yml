@@ -13,6 +13,7 @@ jobs:
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
+      KAFKA_HOME="./lib/kafka"
 
     steps:
     - uses: actions/checkout@v4
@@ -30,13 +31,8 @@ jobs:
         distribution: "graalvm"
         native-image-job-reports: "true"
 
-    - name: Verify installations
-      run: |
-        echo "Java version:"
-        java --version
-        echo ""
-        echo "GraalVM version:"
-        native-image --version
+    - name: Download Apache Kafka Java library
+      run: ./scripts/download_java_libs.sh
 
     - name: Build the library
       run: make
