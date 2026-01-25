@@ -124,6 +124,7 @@ build/scripts/docker-run: Makefile
 	@echo 'docker run \\' >> $@
 	@echo '  --interactive --tty \\' >> $@
 	@echo '  --rm \\' >> $@
+	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
