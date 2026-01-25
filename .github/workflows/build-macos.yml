@@ -2,7 +2,7 @@ name: Build and test
 
 on:
   push:
-    branches: '*'
+    branches: [ "*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -13,7 +13,7 @@ jobs:
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
-      KAFKA_HOME="./lib/kafka"
+      KAFKA_HOME: "./lib/kafka"
 
     steps:
     - uses: actions/checkout@v4
@@ -39,4 +39,3 @@ jobs:
 
     - name: Run the demo/test program
       run: make c-demo
-
