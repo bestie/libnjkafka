@@ -35,7 +35,11 @@ jobs:
       run: ./scripts/download_java_libs.sh
 
     - name: Build the library
-      run: make
+      run:
+        export PATH="$PATH:$KAFKA_HOME/bin"
+        make
 
     - name: Run the demo/test program
-      run: make c-demo
+      run: |
+        export PATH="$PATH:$KAFKA_HOME/bin"
+        make c-demo
