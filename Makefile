@@ -3,14 +3,17 @@ PLATFORM := $(shell uname -m)
 ifeq ($(OS),Linux)
 	LIB_EXT = so
 	CC ?= gcc
-	PLATFORM_NATIVE_IMAGE_FLAGS = ""
+	PLATFORM_NATIVE_IMAGE_FLAGS =
+	INSTALL_NAME_FLAGS =
+	# C_DEMO_RPATH = # -Wl,-rpath,'$$ORIGIN'
 endif
 ifeq ($(OS),Darwin)
 	LIB_EXT = dylib
 	CC ?= clang
 	# Only macOS gets fast builds, don't @ me.
 	PLATFORM_NATIVE_IMAGE_FLAGS = "-Ob"
-	# EXTRA_LD_FLAGS="-Wl,-install_name,@rpath/libnjkafka.dylib"
+	INSTALL_NAME_FLAGS = "-Wl,-install_name,@rpath/libnjkafka.dylib"
+	# C_DEMO_RPATH = # "-Wl,-rpath,@executable_path"
 endif
 
 GRAALVM_HOME ?=
@@ -66,20 +69,13 @@ all: native lib
 .PHONY: lib
 lib: $(SHARED_LIBRARY_OBJECT)
 
-ifeq ($(OS),Darwin)
 $(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
 	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
-	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
-		-Wl,-install_name,@rpath/libnjkafka.dylib \
-		-L$(BUILD_DIR) \ -lnjkafka_core
-endif
-
-ifeq ($(OS),Linux)
-$(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
-	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
-	$(CC) -shared -o $(SHARED_LIBRARY_OBJECT) $(C_API_OBJECT) \
-		-L$(BUILD_DIR) -lnjkafka_core
-endif
+	$(CC) -shared -o $@ $(C_API_OBJECT) \
+		$(INSTALL_NAME_FLAGS) -L$(BUILD_DIR) -lnjkafka_core \
+		;
+		# -Wl,-soname,libnjkafka.so \
+		# && ldd $(SHARED_LIBRARY_OBJECT) | grep libnjkafka_core | grep -v "not found"
 
 .PHONY: c-api
 c-api: $(C_API_OBJECT)
@@ -91,7 +87,7 @@ $(C_API_OBJECT): $(C_API_SRC) $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS)
 .PHONY: native
 native: $(GRAALVM_NATIVE_OBJECT)
 
-$(GRAALVM_NATIVE_OBJECT): $(GRAALVM_DEPENDENCY_METADATA) $(STRUCT_DEFINITIONS)
+$(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DEPENDENCY_METADATA)
 	mkdir -p $(BUILD_DIR)
 	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
 	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
@@ -116,17 +112,11 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 
 ## Docker #####################################################################
 
-DOCKER_IMAGE_NAME = libnjkafka
-DOCKER_IMAGE_TAG ?= dev-latest
+DOCKER_TAG ?= lib$(LIB_NAME):latest
 DOCKER_PROJECT_HOME = /libnjkafka
 
 .PHONY: docker-build
 docker-build: build/.docker_build
-
-.PHONY: docker-push
-docker-push: docker-build
-docker tag libnjkafka:dev-latest ghcr.io/bestie/libnjkafka:dev-latest
-	docker push ghcr.io/bestie/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
 
 build/scripts/docker-run: Makefile
 	@mkdir -p build/scripts
@@ -134,7 +124,6 @@ build/scripts/docker-run: Makefile
 	@echo 'docker run \\' >> $@
 	@echo '  --interactive --tty \\' >> $@
 	@echo '  --rm \\' >> $@
-	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
@@ -143,7 +132,7 @@ build/scripts/docker-run: Makefile
 
 build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
 	mkdir -p $(BUILD_BASE_DIR)
-	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) . && touch build/.docker_build
+	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
 .PHONY: docker-make
 docker-make: build/scripts/docker-run
@@ -190,18 +179,15 @@ docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
-	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby --disable=gems demo.rb
+	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build ruby --disable=gems demo.rb && \
+	  RUN_BATCH_POLL_RETURN=1 KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) C_EXT_PATH=./build ruby --disable=gems demo.rb
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): ruby-clean $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
+$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
 	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
 	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) make
-	# if [ "$(OS)" = "Darwin" ]; then \
-		# install_name_tool -change $(SHARED_LIBRARY_OBJECT) @rpath/libnjkafka.dylib $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
-		# install_name_tool -add_rpath $(PROJECT_HOME)/$(BUILD_DIR) $(PROJECT_HOME)/demos/ruby/build/libnjkafka_ext.bundle
-	# fi
 
 .PHONY: ruby-make-file
 ruby-make-file: $(DEMO_DIR)/ruby/build/Makefile
@@ -220,24 +206,19 @@ C_EXECUTABLE = $(BUILD_DIR)/libnjkafka_c_demo
 .PHONY: c-demo
 c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
-	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) $(C_EXECUTABLE)
+	cd $(BUILD_DIR) && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
 
-ifeq ($(OS),Darwin)
-$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
+# $(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
+# 	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) -I $(BUILD_DIR) -L $(BUILD_DIR) -lnjkafka \
+# 		$(C_DEMO_RPATH) -o $(C_EXECUTABLE) \
+# 		$(DEMO_DIR)/c/demo.c
+
+$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT)
+	LD_LIBRARY_PATH=$(DOCKER_PROJECT_HOME)/$(BUILD_DIR) \
 	$(CC) $(C_FLAGS) \
 		-I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
 		-Wl,-rpath,@executable_path \
 		-o $(C_EXECUTABLE)
-
-endif
-ifeq ($(OS),Linux)
-$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c
-	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) $(CC) $(C_FLAGS) \
-			$(DEMO_DIR)/c/demo.c \
-			-I $(BUILD_DIR) \
-			$(DEMO_C_LIBS) \
-			-o $(C_EXECUTABLE)
-endif
 
 ## Misc #######################################################################
 
@@ -247,25 +228,18 @@ compile_flags.txt: Makefile
 	echo -I$(BUILD_DIR) >> compile_flags.txt
 	echo -L$(BUILD_DIR) >> compile_flags.txt
 
-.PHONY: clean-c
-clean-c:
-	rm -f $(C_EXECUTABLE)
-	rm -f $(SHARED_LIBRARY_OBJECT)
-	rm -f $(C_API_OBJECT)
-
 .PHONY: clean
-clean:
-	rm -rf ruby/build/*
+clean: ruby-clean
 	rm -rf $(JAVA_BIN)
 	rm -rf $(GRAALVM_AGENT_CONFIG_DIR)
-	rm -rf $(BUILD_BASE_DIR)/*
+	rm -rf $(BUILD_DIR)
 	rm -f *.log
 	rm -f *.json
 	rm -f $(BUILD_BASE_DIR)/.docker_build
 
 .PHONY: topic-create
 topic-create:
-	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic create
+	KAFKA_TOPIC=$(KAFKA_TOPIC) KAFKA_BROKERS=$(KAFKA_BROKERS) ./scripts/topic create && ./scripts/publish_messages.sh
 
 .PHONY: topic-delete
 topic-delete:
