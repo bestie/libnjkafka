@@ -33,8 +33,8 @@ jobs:
         cache-to: type=gha,mode=max
         platform: linux/amd64
         build-args: |
-          architecture=x64
-          graalvm_sha256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663
+          ARCHITECTURE=x64
+          GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
