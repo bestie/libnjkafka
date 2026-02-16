@@ -31,6 +31,7 @@ jobs:
         tags: ${{ env.DOCKER_TAG }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        platform: linux/amd64
         build-args: |
           architecture=x64
           graalvm_sha256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663
@@ -41,6 +42,7 @@ jobs:
     - name: Build the library
       run: |
         docker run --network=host \
+          --platform=linux/amd64 \
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
@@ -71,6 +73,7 @@ jobs:
     - name: Run the C test program
       run: |
         docker run --network=host \
+          --platform=linux/amd64 \
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
@@ -104,6 +107,7 @@ jobs:
     - name: Compile the Ruby C extension and run the demo program
       run: |
         docker run --network=host \
+          --platform=linux/amd64 \
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
