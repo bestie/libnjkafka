@@ -55,21 +55,6 @@ jobs:
         name: build-artifacts
         path: build/
 
-  c-tests:
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
-      KAFKA_TOPIC: kafka-build-topic
-      KAFKA_BROKERS: localhost:9092
-
-    steps:
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
-
-    - name: Ensure the broker is up
-      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
-
     - name: Run the C test program
       run: |
         docker run --network=host \
@@ -80,18 +65,6 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make c-demo
 
-  build-ruby:
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
-      KAFKA_TOPIC: kafka-build-topic
-      KAFKA_BROKERS: localhost:9092
-
-    steps:
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
-
     - uses: docker/build-push-action@v5
       with:
         context: .
@@ -101,10 +74,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Ensure the broker is up
-      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
-
-    - name: Compile the Ruby C extension and run the demo program
+    - name: Compile the Ruby C extension and run the Ruby tests
       run: |
         docker run --network=host \
           --platform=linux/amd64 \
