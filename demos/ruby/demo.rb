@@ -231,6 +231,11 @@ else
   failed = true
   puts RED + "  Got average time: #{period_average}"
   puts RED + "  Background thread heartbeats were not evenly spaced. Background thread may have been blocked by consumer polling."
+  puts "concurrent_heartbeats="
+  puts concurrent_heartbeats.inspect
+  puts ""
+  puts "periods="
+  puts periods.inspect
 end
 puts ANSI_RESET
 
