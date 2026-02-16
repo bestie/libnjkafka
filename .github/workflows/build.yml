@@ -7,49 +7,84 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  build:
+  compiler-docker-image:
     runs-on: ubuntu-latest
     env:
-      DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
+      DOCKER_TAG: libnjkafka:gha
+    strategy:
+      matrix:
+        include:
+          - docker_platform: linux/amd64
+            graalvm_arch: x64
+          - docker_platform: linux/arm64
+            graalvm_arch: aarch64
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Build the compiler Docker image
+      uses: ./.github/actions/docker-gha-cache/build
+      with:
+        tag: ${{ env.DOCKER_TAG }}
+        platform: ${{ matrix.docker_platform }}
+        build-args: |
+          GRAALVM_ARCH=${{ matrix.graalvm_arch }}
+
+  compile:
+    runs-on: ubuntu-latest
+    needs:
+      - compiler-docker-image
+    env:
+      DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
 
+    services:
+      broker: &broker
+        image: apache/kafka-native:3.9.2
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+          KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+          KAFKA_PROCESS_ROLES: 'broker,controller'
+          KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+          KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+          KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+          KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+          CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+          KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Pull the docker-compose stack
-      run: docker compose pull --quiet
-
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
-
-    - name: Cache Docker layers
-      uses: actions/cache@v3
+    - uses: actions/checkout@v6
       with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-docker-${{ github.sha }}
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Restore the build directory
+      uses: actions/cache/restore@v5
+      id: native-binaries-cache
+      with:
+        key: build-dir-${{ github.ref_name }}
         restore-keys: |
-          ${{ runner.os }}-docker-
+          build-dir-main
+        path: build/
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Build the Docker image for library compilation
-      run: |
-        docker buildx build \
-          --build-arg ARCHITECTURE=x64 \
-          --build-arg GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663 \
-          --cache-from=type=gha \
-          --cache-to=type=gha,mode=max \
-          --tag ${{ env.DOCKER_TAG }} \
-          --load \
-          .
-
-    - name: Ensure the broker is up
-      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
+    - name: Restore compiler Docker image from cache
+      uses: ./.github/actions/docker-gha-cache/restore
+      with:
+        tag: ${{ env.DOCKER_TAG }}
 
     - name: Build the library
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
           --volume ${{ github.workspace }}:/libnjkafka \
@@ -58,13 +93,8 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: build/
-
-    - name: Run the demo/test program
+    - name: Run the C test program
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
           --volume ${{ github.workspace }}:/libnjkafka \
@@ -73,21 +103,169 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make c-demo
 
-    - name: Build the Docker image for the Ruby C extension
-      run: |
-        docker buildx build \
-          --cache-from=type=gha \
-          --cache-to=type=gha,mode=max \
-          --tag ${{ env.DOCKER_TAG }}-ruby \
-          --file Dockerfile.ruby \
-          --load \
-          .
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: build-dir
+        path: build/
 
-    - name: Compile the Ruby C extension and run the demo program
+    - name: Save build directory to the cache
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: build/
+        key: build-dir-${{ github.ref_name }}
+
+  ruby-c-extension:
+      runs-on: ubuntu-latest
+      needs:
+        - compile
+      env:
+        DOCKER_TAG: libnjkafka-ruby:gha
+        RUBY_IMAGE_PATH: /tmp/ruby-image.tar
+        KAFKA_TOPIC: kafka-build-topic
+        KAFKA_BROKERS: localhost:9092
+
+      services:
+        broker: *broker
+
+      steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: build-dir
+          path: ./build
+
+      - name: Show artifacts
+        run: ls -l build
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag ${{ env.DOCKER_TAG }} \
+            --file Dockerfile.ruby \
+            .
+
+      - name: Compile the Ruby C extension and run the Ruby tests
+        run: |
+          docker run --network=host \
+            --volume ${{ github.workspace }}:/libnjkafka \
+            --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+            --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+            ${{ env.DOCKER_TAG }} \
+            make ruby-c-ext
+
+  linux-binaries:
+    runs-on: ubuntu-latest
+    needs:
+      - compiler-docker-image
+    strategy:
+      matrix:
+        include:
+          - docker_platform: linux/amd64
+            cpu_arch: x86_64
+          - docker_platform: linux/arm64
+            cpu_arch: arm64
+
+    env:
+      DOCKER_TAG: libnjkafka:gha
+      KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: localhost:9092
+      DOCKER_PLATFORM: ${{ matrix.docker_platform }}
+      CPU_ARCH: ${{ matrix.cpu_arch }}
+
+    services:
+      broker: *broker
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Set up QEMU
+      if: matrix.docker_platform != 'linux/amd64'
+      uses: docker/setup-qemu-action@v4
+      with:
+        platforms: ${{ inputs.platform }}
+
+    - name: Restore compiler Docker image from cache
+      uses: ./.github/actions/docker-gha-cache/restore
+      with:
+        tag: ${{ env.DOCKER_TAG }}
+        platform: ${{ env.DOCKER_PLATFORM }}
+
+    - name: Build the library
       run: |
-        docker run --network=host \
-          --volume ${{ github.workspace }}:/libnjkafka \
-          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
-          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-          ${{ env.DOCKER_TAG }}-ruby \
-          make ruby-demo
+        make build/scripts/docker-run
+        build/scripts/docker-run make
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: linux-${{ env.CPU_ARCH }}
+        path: build/Linux-${{ env.CPU_ARCH }}
+
+  compile-macos-arm64:
+    runs-on: macos-latest
+    env:
+      KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: localhost:9092
+      JDK_VERSION: 25
+      GRAALVM_ARCHIVE: graalvm-jdk-25_macos-aarch64_bin.tar.gz
+      KAFKA_ARCHIVE: kafka_2.13-3.9.2.tgz
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Start Kafka
+      run: |
+        brew install kafka
+        brew services start kafka
+
+    - name: Download GraalVM
+      run: |
+        curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
+
+    - name: Install GraalVM
+      run: |
+        tar -xzf ${{ env.GRAALVM_ARCHIVE }}
+        rm ${{ env.GRAALVM_ARCHIVE }}
+        mv graalvm-jdk-${{ env.JDK_VERSION }}* graalvm
+        GRAALVM_HOME="$PWD/graalvm/Contents/Home"
+        echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
+        echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
+        echo "PATH=$GRAALVM_HOME/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Download Kafka libs
+      run: |
+        curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
+
+    - name: Install Kafka libs
+      run: |
+        tar -xzf ${{ env.KAFKA_ARCHIVE }}
+        rm ${{ env.KAFKA_ARCHIVE }}
+        mv kafka_* kafka
+        KAFKA_HOME="$PWD/kafka"
+        CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
+        echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
+        echo "PATH=$KAFKA_HOME/bin:$PATH" >> $GITHUB_ENV
+        echo "CLASSPATH=$CLASSPATH" >> $GITHUB_ENV
+
+    - name: Build the library
+      run: |
+          make
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: macos-arm64
+        path: build/Darwin-arm64/dist

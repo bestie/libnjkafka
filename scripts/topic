@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -x
 
 # Check if the required environment variables are set
 if [ -z "$KAFKA_BROKERS" ] || [ -z "$KAFKA_TOPIC" ]; then
@@ -35,8 +37,8 @@ clear_topic() {
 
 # Function to delete the Kafka topic
 delete_topic() {
-  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" --delete --topic "$KAFKA_TOPIC"
-  echo "Kafka topic '$KAFKA_TOPIC' has been deleted."
+  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" --delete --topic "$KAFKA_TOPIC" \
+    && echo "Kafka topic '$KAFKA_TOPIC' has been deleted."
 }
 
 prepare() {
