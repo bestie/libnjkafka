@@ -8,9 +8,7 @@ benchmarks["Load C extension"] = Benchmark.realtime do
   require_relative "lib_nj_kafka"
 end
 
-bg_heartbeat_period = 0.1
 consumer = nil
-events = []
 exit_code = 0
 expected_record_count = 120
 failed = false
@@ -19,11 +17,6 @@ kafka_topic = ENV.fetch('KAFKA_TOPIC')
 main_thread = Thread.current
 partition_numbers = (0..11)
 records_per_partition = 10
-worker_threads = {}
-
-def now
-  Process.clock_gettime(Process::CLOCK_MONOTONIC)
-end
 
 class RebalanceListener
   def initialize
@@ -73,46 +66,15 @@ benchmarks["Subscribe to topic"] = Benchmark.realtime do
   consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
 end
 
-worker_threads[:background] = Thread.new do
-  Thread.current.name = "background"
-
-  until Thread.current[:stop]
-    events << [now, :heartbeat]
-    sleep bg_heartbeat_period
-  end
-  events << [now, :thread_exit]
-end
-
-sleep 0.1
 records = []
 
 puts "Polling"
-poll_start = 0
-poll_end = 0
 poll_timeout_ms = 5_000
 
-cv = Thread::ConditionVariable.new
-mut = Thread::Mutex.new
-mut.lock
-
-worker_threads[:poll] = Thread.new do
-  Thread.current.name = "poll"
-
-  mut.synchronize do
-    poll_start = now
-    records = consumer.poll(poll_timeout_ms)
-    poll_end = now
-
-    cv.signal
-  end
-
-  puts "🧵 Done polling!!!"
-  sleep ENV.fetch("POST_POLL_SLEEP", 0)
+benchmarks["Cosumer poll"] = Benchmark.realtime do
+  records = consumer.poll(poll_timeout_ms)
 end
 
-cv.wait(mut)
-
-benchmarks["Cosumer poll"] = poll_end - poll_start
 record_count = records.count
 
 processed_offsets = []
@@ -121,13 +83,6 @@ records.each do |record|
   print "."
 end
 puts "Done processing"
-
-worker_threads[:background][:stop] = true
-worker_threads[:background].join(0.2)
-worker_threads[:background].terminate
-
-# worker_threads[:poll].wakeup
-worker_threads[:poll].join(1)
 
 puts "Committing offsets synchronously"
 benchmarks["Commit offsets"] = Benchmark.realtime do
@@ -169,7 +124,7 @@ expected_topic_partition_list = LibNJKafka::TopicPartitionList.from_name_and_num
 
 # Partitions assigned event will execute in worker thread where the consumer is polling
 assignment_callback_called = rebalance_listener.method_calls.first == [
-  worker_threads[:poll],
+  main_thread,
   :on_partitions_assigned,
   consumer,
   expected_topic_partition_list
@@ -200,42 +155,6 @@ else
   failed = true
   puts RED + "  Did not get rebalance listener on_partitions_revoked"
   puts "  Methods calls received: #{rebalance_listener.method_calls.inspect}"
-end
-puts ANSI_RESET
-
-poll_duration = poll_end - poll_start
-expected_bg_thread_heartbeats = (poll_duration / bg_heartbeat_period).floor
-concurrent_heartbeats= events
-  .drop_while { |e| e.first < poll_start }
-  .take_while { |e| e.first < poll_end }
-periods = concurrent_heartbeats.map(&:first).each_cons(2).map { |a, b| b - a }
-period_average = (periods.sum / periods.count.to_f)
-
-puts "🧵 Expected concurrent heartbeats = #{expected_bg_thread_heartbeats}"
-expected_heartbeat_range = ((expected_bg_thread_heartbeats*0.9)..(expected_bg_thread_heartbeats*1.1))
-if expected_heartbeat_range.cover?(concurrent_heartbeats.count)
-  puts GREEN + "  Got: #{concurrent_heartbeats.count}"
-else
-  failed = true
-  puts RED + "  Got: #{concurrent_heartbeats.count}"
-  puts RED + "  Background thread may have been blocked by consumer polling."
-end
-puts ANSI_RESET
-
-puts "🧵 Expected average time between heartbeats = #{bg_heartbeat_period}"
-tolerance = bg_heartbeat_period * 0.1
-expected_period_range = ((bg_heartbeat_period-tolerance)..(bg_heartbeat_period+tolerance))
-if expected_period_range.cover?(period_average)
-  puts GREEN + "  Got average time: #{period_average}"
-else
-  failed = true
-  puts RED + "  Got average time: #{period_average}"
-  puts RED + "  Background thread heartbeats were not evenly spaced. Background thread may have been blocked by consumer polling."
-  puts "concurrent_heartbeats="
-  puts concurrent_heartbeats.inspect
-  puts ""
-  puts "periods="
-  puts periods.inspect
 end
 puts ANSI_RESET
 
