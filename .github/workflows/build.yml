@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: compiler-docker-image
     env:
-      DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
+      DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
 
