@@ -83,17 +83,9 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - name: Check the binary cache
-      uses: actions/cache@v5
-      id: native-binaries-cache
-      with:
-        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
-        path: /build
-        lookup-only: true
-
     - name: Restore binary cache
       uses: actions/cache@v5
-      if: steps.native-binaries-cache.outputs.cache-hit == 'true'
+      id: native-binaries-cache
       with:
         key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
         path: /build
