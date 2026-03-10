@@ -183,4 +183,4 @@ jobs:
             --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
             --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
             ${{ env.DOCKER_TAG }} \
-            make ruby-demo
+            make ruby-c-ext
