@@ -67,7 +67,7 @@ jobs:
         fail-on-cache-miss: true
 
     - name: Load Docker image
-      run: docker load --input /tmp/compilation-image.tar
+      run: docker load --input ${{ env.COMPILER_IMAGE_PATH }}
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
