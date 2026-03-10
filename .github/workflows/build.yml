@@ -72,7 +72,9 @@ jobs:
 
   native_binaries:
     runs-on: ubuntu-latest
-    needs: compiler-docker-image
+    needs:
+      - compiler-docker-image
+      - broker-docker-images
     env:
       DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
