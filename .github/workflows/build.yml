@@ -8,7 +8,7 @@ on:
 
 env:
   COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
-  BROKER_BROKER_IMAGE_PATH: /tmp/broker-images.tar
+  BROKER_IMAGE_PATH: /tmp/broker-images.tar
 
 jobs:
 
@@ -54,7 +54,7 @@ jobs:
       id: broker-images
       with:
         path: ${{ env.BROKER_IMAGE_PATH }}
-        key: compiler-image-${{ hashFiles('docker-compose.yml') }}
+        key: broker-image-${{ hashFiles('docker-compose.yml') }}
         lookup-only: true
 
     - name: Pull and save images
@@ -67,8 +67,8 @@ jobs:
       if: steps.broker-images.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
       with:
-        path: ${{ env.IMAGE_PATH }}
-        key: compiler-image-${{ hashFiles('docker-compose.yml') }}
+        path: ${{ env.BROKER_IMAGE_PATH }}
+        key: broker-image-${{ hashFiles('docker-compose.yml') }}
 
   native_binaries:
     runs-on: ubuntu-latest
