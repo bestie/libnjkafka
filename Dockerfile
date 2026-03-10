@@ -26,8 +26,8 @@ ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${ARCHITECTURE}_bin.tar.gz
 RUN wget --quiet https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
 
 # Download Kafka client
-ARG KAFKA_ARCHIVE=kafka_2.13-3.9.0.tgz
-RUN wget --quiet https://downloads.apache.org/kafka/3.9.0/${KAFKA_ARCHIVE}
+ARG KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
+RUN wget --quiet https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
 
 ENV JDK_VERSION=$JDK_VERSION
 ARG GRAALVM_HOME=/home/graalvm
