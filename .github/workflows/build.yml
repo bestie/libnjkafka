@@ -60,7 +60,7 @@ jobs:
       run: docker compose up --detach
 
     - name: Restore Docker image from cache
-      uses: actions/cache/restore@4
+      uses: actions/cache/restore@v5
       with:
         path: ${{ env.COMPILER_IMAGE_PATH }}
         key: compiler-image-${{ hashFiles('Dockerfile') }}
