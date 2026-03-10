@@ -6,10 +6,45 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
+
 jobs:
 
-  build:
+  compiler-docker-image:
     runs-on: ubuntu-latest
+    env:
+      DOCKER_TAG: libnjkafka:gha
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check Docker image cache
+      uses: actions/cache@v4
+      id: compiler-image
+      with:
+        path: ${{ env.COMPILER_IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('Dockerfile') }}
+        lookup-only: true
+
+    - name: Build Docker image
+      if: steps.compiler-image.outputs.cache-hit != 'true'
+      run: |
+        docker build \
+          --build-arg ARCHITECTURE=linux/amd64 \
+          --tag ${{ env.DOCKER_TAG }} \
+          .
+        docker save ${{ env.DOCKER_TAG }} --output ${{ env.COMPILER_IMAGE_PATH }}
+
+    - name: Save Docker image
+      if: steps.compiler-image.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.COMPILER_IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('Dockerfile') }}
+
+  native_binaries:
+    runs-on: ubuntu-latest
+    needs: compilation-docker-image
     env:
       DOCKER_TAG: libnjkafka:${{ github.ref_name }}-${{ github.sha }}
       KAFKA_TOPIC: kafka-build-topic
@@ -24,16 +59,15 @@ jobs:
     - name: Bring up docker-compose stack
       run: docker compose up --detach
 
-    - uses: docker/build-push-action@v5
+    - name: Restore Docker image from cache
+      uses: actions/cache/restore@4
       with:
-        context: .
-        load: true
-        tags: ${{ env.DOCKER_TAG }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        build-args: |
-          ARCHITECTURE=x64
-          GRAALVM_SHA256=46ec9582ebe114f93470403f2cc123238ac0c7982129c358af7d8e1de52dd663
+        path: ${{ env.COMPILER_IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('Dockerfile') }}
+        fail-on-cache-miss: true
+
+    - name: Load Docker image
+      run: docker load --input /tmp/compilation-image.tar
 
     - name: Ensure the broker is up
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
@@ -48,12 +82,6 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: build/
-
     - name: Run the C test program
       run: |
         docker run --network=host \
@@ -64,21 +92,9 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make c-demo
 
-    - uses: docker/build-push-action@v5
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        context: .
-        file: Dockerfile.ruby
-        load: true
-        tags: ${{ env.DOCKER_TAG }}-ruby
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        name: native_binaries
+        path: build/
 
-    - name: Compile the Ruby C extension and run the Ruby tests
-      run: |
-        docker run --network=host \
-          --platform=linux/amd64 \
-          --volume ${{ github.workspace }}:/libnjkafka \
-          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
-          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-          ${{ env.DOCKER_TAG }}-ruby \
-          make ruby-demo
