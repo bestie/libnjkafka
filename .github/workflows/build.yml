@@ -8,6 +8,7 @@ on:
 
 env:
   COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
+  BROKER_BROKER_IMAGE_PATH: /tmp/broker-images.tar
 
 jobs:
 
@@ -37,10 +38,37 @@ jobs:
 
     - name: Save Docker image
       if: steps.compiler-image.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         path: ${{ env.COMPILER_IMAGE_PATH }}
         key: compiler-image-${{ hashFiles('Dockerfile') }}
+
+  kafka-broker-images:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Check Docker image cache
+      uses: actions/cache@v5
+      id: broker-images
+      with:
+        path: ${{ env.BROKER_IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('docker-compose.yml') }}
+        lookup-only: true
+
+    - name: Pull and save images
+      if: steps.broker-images.outputs.cache-hit != 'true'
+      run: |
+        docker compose pull --quiet
+        docker save $(docker compose config --images) --output ${{ env.BROKER_IMAGE_PATH }}
+
+    - name: Save images to cache
+      if: steps.broker-images.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: ${{ env.IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('docker-compose.yml') }}
 
   native_binaries:
     runs-on: ubuntu-latest
@@ -53,11 +81,17 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - name: Pull the docker-compose stack
-      run: docker compose pull --quiet
+    - name: Restore broker images from cache
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ env.BROKER_IMAGE_PATH }}
+        key: compiler-image-${{ hashFiles('docker-compose.yml') }}
+        fail-on-cache-miss: true
 
-    - name: Bring up docker-compose stack
-      run: docker compose up --detach
+    - name: Start broker
+      run: |
+        docker load --input ${{ env.BROKER_IMAGE_PATH }}
+        docker compose up --detach
 
     - name: Restore Docker image from cache
       uses: actions/cache/restore@v5
