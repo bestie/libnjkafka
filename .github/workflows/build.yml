@@ -158,6 +158,7 @@ jobs:
         run: |
           docker build \
             --tag ${{ env.DOCKER_TAG }} \
+            --file Dockerfile.ruby \
             .
 
       - name: Compile the Ruby C extension and run the Ruby tests
