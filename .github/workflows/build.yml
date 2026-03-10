@@ -30,7 +30,7 @@ jobs:
       if: steps.compiler-image.outputs.cache-hit != 'true'
       run: |
         docker build \
-          --build-arg ARCHITECTURE=linux/amd64 \
+          --build-arg ARCHITECTURE=x64 \
           --tag ${{ env.DOCKER_TAG }} \
           .
         docker save ${{ env.DOCKER_TAG }} --output ${{ env.COMPILER_IMAGE_PATH }}
