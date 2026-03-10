@@ -16,10 +16,10 @@ jobs:
     env:
       DOCKER_TAG: libnjkafka:gha
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Check Docker image cache
-      uses: actions/cache@v6
+      uses: actions/cache@v5
       id: compiler-image
       with:
         path: ${{ env.COMPILER_IMAGE_PATH }}
@@ -51,7 +51,7 @@ jobs:
       KAFKA_BROKERS: localhost:9092
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Pull the docker-compose stack
       run: docker compose pull --quiet
