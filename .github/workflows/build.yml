@@ -83,6 +83,13 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
+    - name: Check the binary cache
+      uses: actions/cache@v5
+      id: native-binaries-cache
+      with:
+        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
+        lookup-only: true
+
     - name: Restore broker images from cache
       uses: actions/cache/restore@v5
       with:
@@ -109,6 +116,7 @@ jobs:
       run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Build the library
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
           --platform=linux/amd64 \
@@ -133,6 +141,13 @@ jobs:
       with:
         name: native_binaries
         path: build/
+
+    - name: Save binaries and headers to cache
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: build/
+        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
 
   ruby-docker-image:
       runs-on: ubuntu-latest
