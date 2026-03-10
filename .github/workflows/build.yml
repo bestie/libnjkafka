@@ -88,7 +88,15 @@ jobs:
       id: native-binaries-cache
       with:
         key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
+        path: /build
         lookup-only: true
+
+    - name: Restore binary cache
+      uses: actions/cache@v5
+      if: steps.native-binaries-cache.outputs.cache-hit == 'true'
+      with:
+        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
+        path: /build
 
     - name: Restore broker images from cache
       uses: actions/cache/restore@v5
