@@ -43,7 +43,7 @@ jobs:
         path: ${{ env.COMPILER_IMAGE_PATH }}
         key: compiler-image-${{ hashFiles('Dockerfile') }}
 
-  kafka-broker-images:
+  broker-docker-images:
     runs-on: ubuntu-latest
 
     steps:
