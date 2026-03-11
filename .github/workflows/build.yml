@@ -91,7 +91,7 @@ jobs:
 
     - name: Reset mtimes
       run: |
-        apt-get install git-restore-mtime
+        sudo apt-get install git-restore-mtime
         git-restore-mtime --verbose
 
     - name: Show the checked out files again
