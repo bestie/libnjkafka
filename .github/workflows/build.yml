@@ -97,6 +97,11 @@ jobs:
         key: broker-images-${{ hashFiles('docker-compose.yml') }}
         fail-on-cache-miss: true
 
+    - name: Show the restored files
+      run: |
+          ls -l build/
+          ls -l build/Linux*
+
     - name: Start broker
       run: |
         docker load --input ${{ env.BROKER_IMAGE_PATH }}
