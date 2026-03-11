@@ -93,6 +93,7 @@ jobs:
       uses: chetan/git-restore-mtime-action@v2
       with:
         working-directory: "."
+        args: --verbose --commit-time
 
     - name: Show the checked out files again
       run: |
