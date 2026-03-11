@@ -92,7 +92,7 @@ jobs:
     - name: Reset mtimes
       run: |
         sudo apt-get install git-restore-mtime
-        git-restore-mtime --verbose
+        git restore-mtime --verbose
 
     - name: Show the checked out files again
       run: |
