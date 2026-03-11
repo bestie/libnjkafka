@@ -90,10 +90,9 @@ jobs:
         ls -l include
 
     - name: Reset mtimes
-      uses: chetan/git-restore-mtime-action@v2
-      with:
-        working-directory: "."
-        args: --verbose --commit-time
+      run: |
+        apt-get install git-restore-mtime
+        git-restore-mtime --verbose
 
     - name: Show the checked out files again
       run: |
