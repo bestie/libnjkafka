@@ -7,13 +7,14 @@ on:
     branches: [ "main" ]
 
 env:
-  BROKER_IMAGE_PATH: /tmp/broker-images.tar
+  COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
 
 jobs:
   compiler-docker-image:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: libnjkafka:gha
+
     steps:
     - uses: actions/checkout@v6
 
