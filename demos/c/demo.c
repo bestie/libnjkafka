@@ -9,7 +9,6 @@
 #include <pthread.h>
 
 #include "libnjkafka.h"
-#include "libnjkafka_callbacks.h"
 
 #define MESSAGE_COUNT_ENV_KEY "EXPECTED_MESSAGE_COUNT"
 

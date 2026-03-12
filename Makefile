@@ -13,16 +13,18 @@ BUILD_DIR = $(BUILD_BASE_DIR)/$(OS)-$(PLATFORM)
 ifeq ($(OS),Linux)
 	LIB_EXT = so
 	CC ?= gcc
-	PLATFORM_NATIVE_IMAGE_FLAGS =
-	INSTALL_NAME_FLAGS =
+	PLATFORM_NATIVE_IMAGE_FLAGS = -Ob
+	SHARED_LIBRARY_LINKER_FLAGS = -soname,libnjkafka.so
+	NATIVE_IMAGE_LINKER_FLAGS = -soname,linnjkafka_core.so
 	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR)
 endif
 ifeq ($(OS),Darwin)
 	LIB_EXT = dylib
 	CC ?= clang
 	# Only macOS gets fast builds, don't @ me.
-	PLATFORM_NATIVE_IMAGE_FLAGS = "-Ob"
-	INSTALL_NAME_FLAGS = "-Wl,-install_name,@rpath/libnjkafka.dylib"
+	PLATFORM_NATIVE_IMAGE_FLAGS = -Ob
+	SHARED_LIBRARY_LINKER_FLAGS = -install_name,@rpath/libnjkafka.dylib
+	NATIVE_IMAGE_LINKER_FLAGS = -install_name,@rpath/libnjkafka_core.dylib
 	LD_LIBRARY_PATH=
 endif
 
@@ -31,7 +33,9 @@ JAVA_HOME = $(GRAALVM_HOME)
 JAVAC = $(JAVA_HOME)/bin/javac
 JAVAC_VERSION = 22
 NATIVE_IMAGE = $(GRAALVM_HOME)/bin/native-image
-NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) --native-compiler-options="-I$(PROJECT_HOME)/$(BUILD_DIR)"  -H:ConfigurationFileDirectories=$(GRAALVM_AGENT_CONFIG_DIR)
+NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) \
+ --native-compiler-options="-I$(PROJECT_HOME)/$(BUILD_DIR)" \
+ -H:ConfigurationFileDirectories=$(GRAALVM_AGENT_CONFIG_DIR)
 
 # C compilation
 C_SRC = csrc
@@ -51,6 +55,7 @@ C_API_SRC = $(C_SRC)/libnjkafka_c_api.c
 STRUCT_DEFINITIONS = include/libnjkafka_structs.h
 CALLBACK_DEFINITIONS = include/libnjkafka_callbacks.h
 PUBLIC_C_API_HEADERS = include/libnjkafka.h
+COMBINED_HEADER=$(BUILD_DIR)/include/libnjkafka.h
 
 # Binaries
 GRAALVM_NATIVE_OBJECT = $(BUILD_DIR)/libnjkafka_core.$(LIB_EXT)
@@ -61,38 +66,57 @@ SHARED_LIBRARY_OBJECT = $(BUILD_DIR)/libnjkafka.$(LIB_EXT)
 KAFKA_BROKERS ?= localhost:9092
 KAFKA_TOPIC ?= libnjkafka-build-topic
 
-.PHONY: all
-all: native lib
-	@echo "Build complete ✅ ✅ ✅"
-
 .PHONY: lib
 lib: $(SHARED_LIBRARY_OBJECT)
-
-$(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
-	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
-	$(CC) -shared -o $@ $(C_API_OBJECT) \
-		$(INSTALL_NAME_FLAGS) -L$(BUILD_DIR) -lnjkafka_core
+	@echo "Build complete ✅ ✅ ✅"
 
 .PHONY: c-api
 c-api: $(C_API_OBJECT)
 
-$(C_API_OBJECT): $(C_API_SRC) $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS)
-	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
-	$(CC) $(C_FLAGS) -I $(BUILD_DIR) -c $(C_API_SRC) -o $(C_API_OBJECT)
-
 .PHONY: native
 native: $(GRAALVM_NATIVE_OBJECT)
-
-$(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DEPENDENCY_METADATA)
-	mkdir -p $(BUILD_DIR)
-	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
-	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
-	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc -H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS)
 
 .PHONY: java-demo
 java-demo: java
 	./scripts/topic prepare
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) java -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
+
+.PHONY: release
+release: $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/dist
+	mkdir -p $(BUILD_DIR)/dist/include
+	mkdir -p $(BUILD_DIR)/dist/lib
+	cp $(BUILD_DIR)/include/* $(BUILD_DIR)/dist/include
+	cp $(SHARED_LIBRARY_OBJECT) $(BUILD_DIR)/dist/lib
+	cp $(C_API_OBJECT) $(BUILD_DIR)/dist/lib
+
+$(COMBINED_HEADER): $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS) $(PUBLIC_C_API_HEADERS)
+	mkdir -p $(BUILD_DIR)/include
+	echo "" > $@
+	echo "#ifndef LIBNJKAFKA_H" >> $@
+	echo "#define LIBNJKAFKA_H" >> $@
+	cat $(STRUCT_DEFINITIONS)   | grep -v "^#" >> $@
+	cat $(CALLBACK_DEFINITIONS) | grep -v "^#" >> $@
+	cat $(PUBLIC_C_API_HEADERS) | grep -v "^#" >> $@
+	echo "#endif" >> $@
+
+$(SHARED_LIBRARY_OBJECT): $(GRAALVM_NATIVE_OBJECT) $(C_API_OBJECT) $(PUBLIC_C_API_HEADERS)
+	cp $(PUBLIC_C_API_HEADERS) $(BUILD_DIR)
+	$(CC) -shared -o $@ $(C_API_OBJECT) \
+	-Wl,$(SHARED_LIBRARY_LINKER_FLAGS) -L$(BUILD_DIR) -lnjkafka_core
+
+$(C_API_OBJECT): $(C_API_SRC) $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS)
+	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
+	$(CC) $(C_FLAGS) -I $(BUILD_DIR) -c $(C_API_SRC) -o $(C_API_OBJECT)
+
+$(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DEPENDENCY_METADATA)
+	mkdir -p $(BUILD_DIR)
+	cp $(STRUCT_DEFINITIONS) $(BUILD_DIR)
+	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
+
+	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc \
+		-H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS) \
+		-H:NativeLinkerOption=-Wl,$(NATIVE_IMAGE_LINKER_FLAGS)
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
 	./scripts/topic prepare
@@ -108,7 +132,8 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 
 ## Docker #####################################################################
 
-DOCKER_TAG ?= lib$(LIB_NAME):latest
+# DOCKER_TAG ?= lib$(LIB_NAME):latest
+DOCKER_TAG = ci
 DOCKER_PROJECT_HOME = /libnjkafka
 
 .PHONY: docker-build
@@ -131,8 +156,8 @@ build/scripts/docker-run: Makefile
 	@echo '  $(DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
 
-build/.docker_build: Dockerfile Makefile $(C_SRCS) $(JAVA_SRC)/* include/* demos/*
-	mkdir -p $(BUILD_BASE_DIR)
+build/.docker_build: Dockerfile Makefile
+	mkdir -p bulid
 	docker volume create libnjkafka-bash-history-vol
 	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
@@ -176,8 +201,16 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@chmod +x $@
 
 docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
-	docker build -t $(RUBY_DOCKER_TAG) -f Dockerfile.ruby .
-	$(RUBY_DOCKER_SCRIPT) make ruby-demo
+	docker run \
+		--interactive --tty \
+		--rm \
+		--network=host \
+		--env KAFKA_BROKERS=host.docker.internal:9092 \
+		--env KAFKA_TOPIC=libnjkafka-build-topic \
+		--volume /Users/stephenbest/code/libnjkafka:/libnjkafka \
+		--workdir /libnjkafka \
+		ruby:3.4.4-bookworm \
+		make ruby-demo
 
 .PHONY: ruby-demo
 ruby-demo: $(RUBY_C_EXT_BUNDLE)
@@ -209,10 +242,10 @@ c-demo: $(C_EXECUTABLE)
 	./scripts/topic prepare
 	cd $(BUILD_DIR) && LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) ./$(notdir $(C_EXECUTABLE))
 
-$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT)
+$(C_EXECUTABLE): $(DEMO_DIR)/c/demo.c $(SHARED_LIBRARY_OBJECT) $(COMBINED_HEADER)
 	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 	$(CC) $(C_FLAGS) \
-		-I $(BUILD_DIR) $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
+		-I $(BUILD_DIR)/include $(DEMO_DIR)/c/demo.c $(DEMO_C_LIBS) \
 		-Wl,-rpath,@executable_path \
 		-o $(C_EXECUTABLE)
 
