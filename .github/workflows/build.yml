@@ -82,6 +82,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
 
     - name: Show the checked out files
       run: |
@@ -90,9 +92,7 @@ jobs:
         ls -l include
 
     - name: Reset mtimes
-      run: |
-        sudo apt-get install git-restore-mtime
-        git restore-mtime --verbose
+      uses: chetan/git-restore-mtime-action@v2
 
     - name: Show the checked out files again
       run: |
