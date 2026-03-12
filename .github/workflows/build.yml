@@ -57,7 +57,7 @@ jobs:
         key: broker-image-${{ hashFiles('docker-compose.yml') }}
         lookup-only: true
 
-    - name: Pull and save image
+    - name: Pull image
       if: steps.broker-image.ouputs.cache-hit != 'true'
       run: |
         docker compose pull --quiet
@@ -120,7 +120,7 @@ jobs:
       run: docker load --input ${{ env.COMPILER_IMAGE_PATH }}
 
     - name: Ensure the broker is up
-      run: docker compose exec --no-TTY broker sh -c 'cub kafka-ready -b localhost:9092 1 30'
+      run: docker compose exec --no-TTY kafka sh -c 'cub kafka-ready -b localhost:9092 1 30'
 
     - name: Build the library
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
