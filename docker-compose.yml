@@ -1,6 +1,6 @@
 services:
   broker:
-    image: ${IMAGE}
+    image: apache/kafka-native:3.9.2
     hostname: broker
     container_name: broker
     ports:
