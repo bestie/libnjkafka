@@ -119,9 +119,6 @@ jobs:
     - name: Load Docker image
       run: docker load --input ${{ env.COMPILER_IMAGE_PATH }}
 
-    - name: Ensure the broker is up
-      run: docker compose exec --no-TTY kafka sh -c 'cub kafka-ready -b localhost:9092 1 30'
-
     - name: Build the library
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
