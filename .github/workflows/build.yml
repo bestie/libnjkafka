@@ -89,7 +89,7 @@ jobs:
       uses: chetan/git-restore-mtime-action@v2
 
     - name: Restore the build directory
-      uses: actions/cache@v5
+      uses: actions/cache/restore@v5
       id: native-binaries-cache
       with:
         key: build-dir-${{ github.ref_name }}
