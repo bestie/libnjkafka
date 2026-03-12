@@ -130,7 +130,6 @@ void consumer_poll(libnjkafka_Consumer* consumer) {
       printf(" 🧵 thread-%d Consumer#assigned partitions: %d\n", thread_n, topic_partitions->count);
       libnjkafka_free_TopicPartition_List(topic_partitions);
       libnjkafka_consumer_commit_all_sync(consumer, 1000);
-      usleep(500000);
     }
 
     printf(" 🧵 thread-%d Closing consumer\n", thread_n);
