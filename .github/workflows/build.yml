@@ -74,6 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - compiler-docker-image
+      - broker-docker-image
     env:
       DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
