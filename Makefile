@@ -15,7 +15,7 @@ ifeq ($(OS),Linux)
 	CC ?= gcc
 	PLATFORM_NATIVE_IMAGE_FLAGS = -Ob
 	SHARED_LIBRARY_LINKER_FLAGS = -soname,libnjkafka.so
-	NATIVE_IMAGE_LINKER_FLAGS = -soname,linnjkafka_core.so
+	NATIVE_IMAGE_LINKER_FLAGS = -soname,libnjkafka_core.so
 	LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR)
 endif
 ifeq ($(OS),Darwin)
