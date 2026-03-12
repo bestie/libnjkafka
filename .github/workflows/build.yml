@@ -123,7 +123,6 @@ jobs:
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
-          --network=host \
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
