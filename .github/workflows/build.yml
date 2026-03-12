@@ -70,7 +70,7 @@ jobs:
         path: ${{ env.BROKER_IMAGE_PATH }}
         key: broker-images-${{ hashFiles('docker-compose.yml') }}
 
-  native_binaries:
+  compile:
     runs-on: ubuntu-latest
     needs:
       - compiler-docker-image
@@ -85,26 +85,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Show the checked out files
-      run: |
-        ls -l
-        ls -l csrc
-        ls -l include
-
     - name: Reset mtimes
       uses: chetan/git-restore-mtime-action@v2
 
-    - name: Show the checked out files again
-      run: |
-        ls -l
-        ls -l csrc
-        ls -l include
-
-    - name: Restore binary cache
+    - name: Restore the build directory
       uses: actions/cache@v5
       id: native-binaries-cache
       with:
-        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
+        key: build-dir-${{ github.ref_name }}
+        restore_keys:
+          - build-dir-main
         path: build/
 
     - name: Restore broker images from cache
@@ -114,17 +104,12 @@ jobs:
         key: broker-images-${{ hashFiles('docker-compose.yml') }}
         fail-on-cache-miss: true
 
-    - name: Show the restored files
-      run: |
-          ls -l build/
-          ls -l build/Linux*
-
     - name: Start broker
       run: |
         docker load --input ${{ env.BROKER_IMAGE_PATH }}
         docker compose up --detach
 
-    - name: Restore Docker image from cache
+    - name: Restore compiler Docker image from cache
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.COMPILER_IMAGE_PATH }}
@@ -161,20 +146,20 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
       with:
-        name: native_binaries
+        name: build-dir
         path: build/
 
-    - name: Save binaries and headers to cache
+    - name: Save build directory to the cache
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
       with:
         path: build/
-        key: native-binaries-${{ hashFiles('csrc/*.c', 'include/*.h', 'src/**/*.java') }}
+        key: build-dir-${{ github.ref_name }}
 
   ruby-docker-image:
       runs-on: ubuntu-latest
       needs:
-        - native_binaries
+        - compile
         - broker-docker-images
       env:
         DOCKER_TAG: libnjkafka-ruby:gha
@@ -185,7 +170,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: native_binaries
+          name: build-dir
           path: ./build
 
       - name: Show artifacts
