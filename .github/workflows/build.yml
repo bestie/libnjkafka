@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: libnjkafka:gha
+    strategy:
+      matrix:
+        include:
+          - docker_platform: linux/amd64
+            graalvm_arch: x64
+          - docker_platform: linux/arm64
+            graalvm_arch: aarch64
 
     steps:
     - uses: actions/checkout@v6
@@ -22,8 +29,9 @@ jobs:
       uses: ./.github/actions/docker-gha-cache/build
       with:
         tag: ${{ env.DOCKER_TAG }}
+        platform: ${{ matrix.docker_platform }}
         build-args: |
-          ARCHITECTURE=x64
+          ARCHITECTURE=${{ matrix.graalvm_arch }}
 
   compile:
     runs-on: ubuntu-latest
