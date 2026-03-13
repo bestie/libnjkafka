@@ -246,7 +246,7 @@ jobs:
         tar -xzf ${GRAALVM_ARCHIVE}
         rm ${GRAALVM_ARCHIVE}
         mv graalvm-jdk-${JDK_VERSION}* graalvm
-        GRAALVM_HOME="graalvm/Contents/Home"
+        GRAALVM_HOME="$PWD/graalvm/Contents/Home"
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "PATH=$GRAALVM_HOME/bin:$PATH" >> $GITHUB_ENV
@@ -258,7 +258,7 @@ jobs:
         tar -xzf ${KAFKA_ARCHIVE}
         rm ${KAFKA_ARCHIVE}
         mv kafka_2.13-3.9.2 kafka
-        KAFKA_HOME=$PWD/kafka
+        KAFKA_HOME="$PWD/kafka"
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:$PATH" >> $GITHUB_ENV
 
