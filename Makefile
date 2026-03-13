@@ -120,6 +120,8 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
 	@echo "Creating directory $(GRAALVM_AGENT_CONFIG_DIR)"
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
+	@echo "👍 metadata dir"
+
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) \ 
 		java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) \
     	-cp $(CLASSPATH) \
@@ -132,6 +134,7 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 	@echo "👉 JAVA_ENTRYPOINTS compiling"
 	mkdir -p $(JAVA_BIN)
 	$(JAVAC) -cp $(CLASSPATH) -d $(JAVA_BIN) $(JAVA_SRC)/*
+	@echo "👍 JAVA_ENTRYPOINTS"
 
 ## Docker #####################################################################
 
