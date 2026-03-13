@@ -231,9 +231,11 @@ jobs:
     - name: Reset mtimes
       uses: chetan/git-restore-mtime-action@v2
 
-    - name: Install dependencies
-      run: |
-        brew install openssl zlib kafka
+    - name: Install Homebrew dependencies
+      uses: tecolicom/actions-use-homebrew-tools@v1
+      with:
+        tools: 'openssl zlib kafka'
+        verbose: true
 
     - name: Start Kafka
       run: |
