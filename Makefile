@@ -168,7 +168,7 @@ docker-build: $(DOCKER_BUILD_STUB)
 $(DOCKER_BUILD_STUB): Makefile Dockerfile
 	mkdir -p $(BUILD_BASE_DIR)
 	docker build --platform=$(DOCKER_TARGET_PLATFORM) \
-		--build-arg ARCHITECTURE=$(GRAALVM_ARCH) \
+		--build-arg GRAALVM_ARCH=$(GRAALVM_ARCH) \
 		--tag $(DOCKER_TAG) \
 		. \
 		&& touch $(DOCKER_BUILD_STUB)

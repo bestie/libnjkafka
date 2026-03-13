@@ -26,21 +26,23 @@ RUN apt-get update && \
 
 WORKDIR /home
 
-ARG ARCHITECTURE=aarch64
+ARG GRAALVM_ARCH=aarch64
 
 # Download GraalVM
 ARG JDK_VERSION=25
-ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${ARCHITECTURE}_bin.tar.gz
+ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${GRAALVM_ARCH}_bin.tar.gz
 # See https://www.oracle.com/java/technologies/jdk-script-friendly-urls/
 RUN wget --quiet https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE} \
    && tar -xzf ${GRAALVM_ARCHIVE} \
-   && rm ${GRAALVM_ARCHIVE}
+   && rm ${GRAALVM_ARCHIVE} \
+   && echo "${GRAALVM_ARCHIVE}" >> download.log
 
 # Download Kafka client
 ARG KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
 RUN wget --quiet https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE} \
     && tar -xzf ${KAFKA_ARCHIVE} \
-    && rm ${KAFKA_ARCHIVE}
+    && rm ${KAFKA_ARCHIVE} \
+    && echo "${KAFKA_ARCHIVE}" >> download.log
 
 ENV JDK_VERSION=$JDK_VERSION
 ARG GRAALVM_HOME=/home/graalvm
