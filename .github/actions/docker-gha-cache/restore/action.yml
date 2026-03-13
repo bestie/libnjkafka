@@ -35,7 +35,7 @@ runs:
         default_key="${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}"
         echo "default_key=$default_key"
         input_key="${{ inputs.key }}"
-        key=${intput_key:-$default_key}
+        key=${input_key:-$default_key}
 
         default_path="/tmp/$key.tar"
         echo "default_path=$default_path"
@@ -44,8 +44,8 @@ runs:
 
         echo "key=$key"
         echo "path=$path"
-        echo "key=$key" >> $GITHUB_STATE
-        echo "path=$path" >> $GITHUB_STATE
+        echo "key=$key" >> $GITHUB_OUTPUT
+        echo "path=$path" >> $GITHUB_OUTPUT
 
     - name: Restore image
       id: restore
