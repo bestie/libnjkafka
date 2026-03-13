@@ -8,7 +8,6 @@ on:
 
 env:
   COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
-  BROKER_IMAGE_PATH: /tmp/broker-image.tar
 
 jobs:
   compiler-docker-image:
@@ -43,42 +42,37 @@ jobs:
         path: ${{ env.COMPILER_IMAGE_PATH }}
         key: compiler-image-${{ hashFiles('Dockerfile') }}
 
-  broker-docker-image:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v6
-
-    - name: Check Docker image cache
-      uses: actions/cache@v5
-      id: broker-image
-      with:
-        path: ${{ env.BROKER_IMAGE_PATH }}
-        key: broker-image-${{ hashFiles('docker-compose.yml') }}
-        lookup-only: true
-
-    - name: Pull image
-      if: steps.broker-image.ouputs.cache-hit != 'true'
-      run: |
-        docker compose pull --quiet
-        docker save $(docker compose config --images) --output ${{ env.BROKER_IMAGE_PATH }}
-
-    - name: Save image to cache
-      if: steps.broker-image.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v5
-      with:
-        path: ${{ env.BROKER_IMAGE_PATH }}
-        key: broker-image-${{ hashFiles('docker-compose.yml') }}
-
   compile:
     runs-on: ubuntu-latest
     needs:
       - compiler-docker-image
-      - broker-docker-image
     env:
       DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
+
+    services:
+      broker:
+        image: apache/kafka-native:3.9.2
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+          KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+          KAFKA_PROCESS_ROLES: 'broker,controller'
+          KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+          KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+          KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+          KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+          CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+          KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
 
     steps:
     - uses: actions/checkout@v6
@@ -96,18 +90,6 @@ jobs:
         restore-keys: |
           build-dir-main
         path: build/
-
-    - name: Restore broker image from cache
-      uses: actions/cache/restore@v5
-      with:
-        path: ${{ env.BROKER_IMAGE_PATH }}
-        key: broker-image-${{ hashFiles('docker-compose.yml') }}
-        fail-on-cache-miss: true
-
-    - name: Start broker
-      run: |
-        docker load --input ${{ env.BROKER_IMAGE_PATH }}
-        docker compose up --detach
 
     - name: Restore compiler Docker image from cache
       uses: actions/cache/restore@v5
@@ -159,6 +141,31 @@ jobs:
       env:
         DOCKER_TAG: libnjkafka-ruby:gha
         RUBY_IMAGE_PATH: /tmp/ruby-image.tar
+        KAFKA_TOPIC: kafka-build-topic
+        KAFKA_BROKERS: localhost:9092
+
+      services:
+        broker:
+          image: apache/kafka-native:3.9.2
+          ports:
+            - 9092:9092
+          env:
+            KAFKA_NODE_ID: 1
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+            KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+            KAFKA_PROCESS_ROLES: 'broker,controller'
+            KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+            KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+            KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+            KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+            CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+            KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+            KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+            KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+            KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
 
       steps:
       - uses: actions/checkout@v6
