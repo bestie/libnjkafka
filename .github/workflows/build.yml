@@ -260,7 +260,7 @@ jobs:
         echo "untar"
         tar -xzf ${{ env.KAFKA_ARCHIVE }}
         ls -l
-        echo "mv $(basename ${{ env.KAFKA_ARCHIVE }} kafka"
+        echo "mv $(basename ${{ env.KAFKA_ARCHIVE }}) kafka"
         mv $(basename ${{ env.KAFKA_ARCHIVE }}) kafka
         ls -l
         KAFKA_HOME="$PWD/kafka"
