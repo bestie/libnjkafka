@@ -194,13 +194,19 @@ jobs:
             ${{ env.DOCKER_TAG }} \
             make ruby-c-ext
 
-  compile-macos-arm64:
-    runs-on: macos-latest
+  linux-binaries:
     needs: compile
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+
     env:
+      DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
-
+      DOCKER_PLATFORM: ${{ matrix.platform }}
+    
     services:
       broker:
         image: apache/kafka-native:3.9.2
@@ -223,6 +229,29 @@ jobs:
           KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
           KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
           KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Build the container
+      run:
+        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
+
+    - name: Build the library
+      run:
+        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
+
+  compile-macos-arm64:
+    runs-on: macos-latest
+    needs: compile
+    env:
+      KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: localhost:9092
 
     steps:
     - uses: actions/checkout@v6

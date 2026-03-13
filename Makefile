@@ -21,7 +21,6 @@ endif
 ifeq ($(OS),Darwin)
 	LIB_EXT = dylib
 	CC ?= clang
-	# Only macOS gets fast builds, don't @ me.
 	PLATFORM_NATIVE_IMAGE_FLAGS = -Ob
 	SHARED_LIBRARY_LINKER_FLAGS = -install_name,@rpath/libnjkafka.dylib
 	NATIVE_IMAGE_LINKER_FLAGS = -install_name,@rpath/libnjkafka_core.dylib
@@ -135,14 +134,52 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 # DOCKER_TAG ?= lib$(LIB_NAME):latest
 DOCKER_TAG = ci
 DOCKER_PROJECT_HOME = /libnjkafka
+ifeq ($(PLATFORM),x86_64)
+	NATIVE_DOCKER_PLATFORM = linux/amd64
+endif
+ifeq ($(PLATFORM),arm64)
+	NATIVE_DOCKER_PLATFORM = linux/arm64
+endif
+ifeq ($(PLATFORM),aarch64)
+	NATIVE_DOCKER_PLATFORM = linux/arm64
+endif
+
+# Set the target platform for docker build, default to the host platform
+# override by setting environment variable DOCKER_PLATFORM
+DOCKER_PLATFORM ?= $(NATIVE_DOCKER_PLATFORM)
+DOCKER_TARGET_PLATFORM = $(DOCKER_PLATFORM)
+DOCKER_PLATFORM_FILE_FRIENDLY = $(subst /,-,$(DOCKER_TARGET_PLATFORM))
+DOCKER_BUILD_STUB = $(BUILD_BASE_DIR)/docker_build_stub_$(DOCKER_PLATFORM_FILE_FRIENDLY)
+
+ifeq ($(DOCKER_TARGET_PLATFORM),linux/amd64)
+	GRAALVM_ARCH = x64
+endif
+ifeq ($(DOCKER_TARGET_PLATFORM),linux/arm64)
+	GRAALVM_ARCH = aarch64
+endif
 
 .PHONY: docker-build
-docker-build: build/.docker_build
+docker-build: $(DOCKER_BUILD_STUB)
+# 	@echo "NATIVE_DOCKER_PLATFORM=$(NATIVE_DOCKER_PLATFORM)"
+# 	@echo "DOCKER_TARGET_PLATFORM=$(DOCKER_TARGET_PLATFORM)"
+# 	@echo "DOCKER_PLATFORM_FILE_FRIENDLY=$(DOCKER_PLATFORM_FILE_FRIENDLY)"
+# 	@echo "DOCKER_BUILD_STUB=$(DOCKER_BUILD_STUB)"
+	@echo "Docker build complete ✅ ✅ ✅"
 
-build/scripts/docker-run: Makefile
+$(DOCKER_BUILD_STUB): Makefile Dockerfile
+	mkdir -p $(BUILD_BASE_DIR)
+	docker volume create libnjkafka-bash-history-vol
+	docker build --platform=$(DOCKER_TARGET_PLATFORM) \
+		--build-arg ARCHITECTURE=$(GRAALVM_ARCH) \
+		--tag $(DOCKER_TAG) \
+		. \
+		&& touch $(DOCKER_BUILD_STUB)
+
+build/scripts/docker-run: FORCE
 	@mkdir -p build/scripts
 	@echo '#!/usr/bin/env sh' > $@
 	@echo 'docker run \\' >> $@
+	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
 	@echo '  --interactive --tty \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --network=host \\' >> $@
@@ -155,11 +192,6 @@ build/scripts/docker-run: Makefile
 	@echo '  --volume libnjkafka-bash-history-vol:/root/.bash_history \\' >> $@
 	@echo '  $(DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
-
-build/.docker_build: Dockerfile Makefile
-	mkdir -p bulid
-	docker volume create libnjkafka-bash-history-vol
-	docker build -t $(DOCKER_TAG) . && touch build/.docker_build
 
 .PHONY: docker-make
 docker-make: build/scripts/docker-run
@@ -191,6 +223,7 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@mkdir -p build/scripts
 	@echo '#!/usr/bin/env sh' > $@
 	@echo 'docker run \\' >> $@
+	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --interactive --tty \\' >> $@
 	@echo '  --network=host \\' >> $@
@@ -257,6 +290,12 @@ compile_flags.txt: Makefile
 	echo -I$(BUILD_DIR) >> compile_flags.txt
 	echo -L$(BUILD_DIR) >> compile_flags.txt
 
+
+.PHONY: clean-all
+clean-all: ruby-clean
+	rm -rf build
+	mkdir $(BUILD_BASE_DIR)
+
 .PHONY: clean
 clean: ruby-clean
 	rm -rf $(JAVA_BIN)
@@ -281,3 +320,6 @@ check-symbols:
 .PHONY: jdeps
 jdeps: $(JAVA_BIN)
 	jdeps -v -cp $(CLASSPATH) --multi-release $(JAVAC_VERSION) $(JAVA_BIN)
+
+.PHONY: FORCE
+FORCE:
