@@ -46,9 +46,6 @@ prepare() {
   create_topic
 }
 
-echo "JAVA_HOME = $JAVA_HOME"
-echo "scripts/topic $1"
-
 # Parse subcommands
 case "$1" in
   create)

@@ -118,12 +118,8 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 		-H:NativeLinkerOption=-Wl,$(NATIVE_IMAGE_LINKER_FLAGS)
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
-	bash -c 'echo "$${JAVA_HOME}"'
-	@echo "Creating topic $(KAFKA_TOPIC)"
 	./scripts/topic prepare
-	@echo "Creating directory $(GRAALVM_AGENT_CONFIG_DIR)"
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
-	@echo "👍 metadata dir"
 	export KAFKA_BROKERS=$(KAFKA_BROKERS)
 	export KAFKA_TOPIC=$(KAFKA_TOPIC)
 	java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) \
@@ -134,10 +130,8 @@ $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
 java: $(JAVA_ENTRYPOINTS)
 
 $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
-	@echo "👉 JAVA_ENTRYPOINTS compiling"
 	mkdir -p $(JAVA_BIN)
 	$(JAVAC) -cp $(CLASSPATH) -d $(JAVA_BIN) $(JAVA_SRC)/*
-	@echo "👍 JAVA_ENTRYPOINTS"
 
 ## Docker #####################################################################
 
@@ -170,10 +164,6 @@ endif
 
 .PHONY: docker-build
 docker-build: $(DOCKER_BUILD_STUB)
-# 	@echo "NATIVE_DOCKER_PLATFORM=$(NATIVE_DOCKER_PLATFORM)"
-# 	@echo "DOCKER_TARGET_PLATFORM=$(DOCKER_TARGET_PLATFORM)"
-# 	@echo "DOCKER_PLATFORM_FILE_FRIENDLY=$(DOCKER_PLATFORM_FILE_FRIENDLY)"
-# 	@echo "DOCKER_BUILD_STUB=$(DOCKER_BUILD_STUB)"
 	@echo "Docker build complete ✅ ✅ ✅"
 
 $(DOCKER_BUILD_STUB): Makefile Dockerfile
