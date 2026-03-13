@@ -91,12 +91,14 @@ runs:
       run: |
         mkdir -p $(dirname ${{ steps.init.outputs.path }})
 
+        echo "build_args: ${{ steps.init.outputs.build_args }}"
+
         docker buildx build \
           ${{ steps.init.build_args }} \
-          --tag "${{ inputs.tag }}" \
-          --platform "${{ inputs.platform }}" \
-          --output "type=docker,dest=${{ steps.init.outputs.path }}" \
           --tag ${{ inputs.tag }} \
+          --platform "${{ inputs.platform }}" \
+          ${{ steps.init.outputs.build_args }} \
+          --output "type=docker,dest=${{ steps.init.outputs.path }}" \
           ${{ inputs.context }}
 
     - name: Save Docker image to cache
