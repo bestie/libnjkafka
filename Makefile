@@ -167,7 +167,6 @@ docker-build: $(DOCKER_BUILD_STUB)
 
 $(DOCKER_BUILD_STUB): Makefile Dockerfile
 	mkdir -p $(BUILD_BASE_DIR)
-	docker volume create libnjkafka-bash-history-vol
 	docker build --platform=$(DOCKER_TARGET_PLATFORM) \
 		--build-arg ARCHITECTURE=$(GRAALVM_ARCH) \
 		--tag $(DOCKER_TAG) \
