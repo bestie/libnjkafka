@@ -198,13 +198,14 @@ jobs:
       - compiler-docker-image
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        platform: [amd64, arm64]
 
     env:
       DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
-      DOCKER_PLATFORM: ${{ matrix.platform }}
+      DOCKER_PLATFORM: linux/${{ matrix.platform }}
+      CPU_ARCH: ${{ matrix.platform == 'amd64' && 'x86_64' || 'arm64' }}
 
     services:
       broker:
@@ -259,10 +260,10 @@ jobs:
     - name: Show the files
       run: |
         ls -l build
-        ls -l build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
+        ls -l build/Linux-${{ env.CPU_ARCH }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
       with:
-        name: linux-binaries-${{ matrix.platform }}
-        path: build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
+        name: linux-binaries-${{ env.CPU_ARCH }}
+        path: build/Linux-${{ env.CPU_ARCH }}
