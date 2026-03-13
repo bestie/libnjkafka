@@ -259,12 +259,21 @@ jobs:
         rm ${KAFKA_ARCHIVE}
         mv kafka_2.13-3.9.2 kafka
         KAFKA_HOME="$PWD/kafka"
+        CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:$PATH" >> $GITHUB_ENV
+        echo "CLASSPATH=$CLASSPATH" >> $GITHUB_ENV
 
     - name: Build the library
       run: |
           echo "runner OS = ${{ runner.os}}"
+          echo "which javac"
+          which javac
+          echo "which kafka_topics.sh"
+          which kafka_topics.sh
+
+          env | sort
+
           make
 
     - name: Upload build artifacts
