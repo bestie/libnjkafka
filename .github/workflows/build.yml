@@ -222,6 +222,9 @@ jobs:
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
+      JDK_VERSION: 25
+      GRAALVM_ARCHIVE: graalvm-jdk-25_macos-aarch64_bin.tar.gz
+      KAFKA_ARCHIVE: kafka_2.13-3.9.2.tgz
 
     steps:
     - uses: actions/checkout@v6
@@ -236,26 +239,36 @@ jobs:
         brew install kafka
         brew services start kafka
 
+    - name: Cache GraalVM download
+      id: graalvm-cache
+      uses: actions/cache@v5
+      with:
+        path: ${{ env.GRAALVM_ARCHIVE }}
+        key: ${{ env.GRAALVM_ARCHIVE }}
+
     - name: Download GraalVM
+      if: steps.graalvm-cache.outputs.cache-hit != 'true'
       run: |
-        ARCHITECTURE=aarch64
-        JDK_VERSION=25
-        GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
-        curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
-        tar -xzf ${GRAALVM_ARCHIVE}
-        rm ${GRAALVM_ARCHIVE}
-        mv graalvm-jdk-${JDK_VERSION}* graalvm
+        curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
+
+    - name: Install GraalVM
+    - run: |
+        tar -xzf ${{ env.GRAALVM_ARCHIVE }}
+        rm ${{ env.GRAALVM_ARCHIVE }}
+        mv graalvm-jdk-${{ env.JDK_VERSION }}* graalvm
         GRAALVM_HOME="$PWD/graalvm/Contents/Home"
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "PATH=$GRAALVM_HOME/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Download Kafka lib
+    - name: Download Kafka libs
       run: |
-        KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
-        curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
-        tar -xzf ${KAFKA_ARCHIVE}
-        rm ${KAFKA_ARCHIVE}
+        curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
+
+    - name: Install Kafka libs
+    - run: |
+        tar -xzf ${{ env.KAFKA_ARCHIVE }}
+        rm ${{ env.KAFKA_ARCHIVE }}
         mv kafka_2.13-3.9.2 kafka
         KAFKA_HOME="$PWD/kafka"
         CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
@@ -265,15 +278,6 @@ jobs:
 
     - name: Build the library
       run: |
-          echo "runner OS = ${{ runner.os}}"
-          echo "which javac"
-          which javac
-          echo "which java"
-          which java
-          echo "which kafka_topics.sh"
-          which kafka-topics.sh
-          env | sort
-
           make
 
     - name: Upload build artifacts
