@@ -119,7 +119,7 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
 	@echo "preparing topic"
-	./scripts/topic prepare
+	./scripts/topic create
 	@echo "Creating directory $(GRAALVM_AGENT_CONFIG_DIR)"
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) \ 
