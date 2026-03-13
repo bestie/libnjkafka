@@ -238,6 +238,12 @@ jobs:
     - name: Reset mtimes
       uses: chetan/git-restore-mtime-action@v2
 
+    - name: Setup QEMU for cross-platform Docker builds
+      uses: docker/setup-qemu-action@v2
+      with:
+        platforms:
+          - ${{ matrix.platform }}
+
     - name: Build the container
       run:
         DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
