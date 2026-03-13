@@ -244,11 +244,7 @@ jobs:
 
     - name: Build the container
       run:
-        docker build \
-          --platform=${{ env.DOCKER_PLATFORM }} \
-          --tag ${{ env.DOCKER_TAG }} \
-          --file Dockerfile.ruby \
-            .
+        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
 
     - name: Build the library
       run:
@@ -257,8 +253,9 @@ jobs:
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-          ${{ env.DOCKER_TAG }} \
+          ci \
           make lib
+
         ls -l build/
         ls -l build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
 
