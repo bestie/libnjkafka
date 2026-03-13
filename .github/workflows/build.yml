@@ -191,6 +191,12 @@ jobs:
     - name: Reset mtimes
       uses: chetan/git-restore-mtime-action@v2
 
+    - name: Set up QEMU
+      if: matrix.docker_platform != 'linux/amd64'
+      uses: docker/setup-qemu-action@v4
+      with:
+        platforms: ${{ inputs.platform }}
+
     - name: Restore compiler Docker image from cache
       uses: ./.github/actions/docker-gha-cache/restore
       with:
