@@ -229,7 +229,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install openssl zlib
+        brew install openssl zlib tree
 
     - name: Download GraalVM
       run: |
@@ -240,6 +240,7 @@ jobs:
         tar -xzf ${GRAALVM_ARCHIVE}
         rm ${GRAALVM_ARCHIVE}
         mv graalvm-jdk-${JDK_VERSION}* graalvm
+        tree .
         echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
         echo "PATH=$GRAALVM_HOME/bin:\$$PATH" >> $GITHUB_ENV
 
@@ -250,6 +251,7 @@ jobs:
         tar -xzf ${KAFKA_ARCHIVE}
         rm ${KAFKA_ARCHIVE}
         mv kafka_2.13-3.9.2 kafka
+        tree .
         echo "KAFKA_HOME=$PWD/kafka" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
 
