@@ -34,14 +34,29 @@ outputs:
     description: Cache key used for the image tar file.
     value: ${{ env.key }}
 
+outputs:
+  cache-hit:
+    description: If image was present in cache, see actions/cache.
+    value: ${{ steps.restore.outputs.cache-hit }}
+  path:
+    description: Cache path used for the image tar file.
+    value: ${{ steps.set-values.outputs.path }}
+  key:
+    description: Cache key used for the image tar file.
+    value: ${{ steps.set-values.outputs.key }}
+
+
 runs:
   using: composite
   steps:
     - name: Set values
+      id: set-values
       shell: bash
       run: |
         key=${{ inputs.key }} || ${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}
         path=${{ inputs.path }} || /tmp/$key.tar
+        echo "key=$key"
+        echo "path=$path"
         echo "key=$key" >> $GITHUB_STATE
         echo "path=$path" >> $GITHUB_STATE
 
@@ -49,8 +64,8 @@ runs:
       uses: actions/cache@v5
       id: cache-check
       with:
-        path: ${{ env.PATH }}
-        key: ${{ env.KEY }}
+        path: ${{ steps.set-values.outputs.path }}
+        key: ${{ steps.set-values.outputs.key }}
         lookup-only: true
 
     - name: Build Docker image
@@ -69,11 +84,11 @@ runs:
           --platform=${{ inputs.platform }} \
           $build_args \
           .
-        docker save ${{ inputs.tag }} --output ${{ env.path }}
+        docker save ${{ inputs.tag }} --output ${{ steps.set-values.outputs.path }}
 
     - name: Save Docker image to cache
       if: steps.cache-check.outputs.cache-hit != 'true'
       uses: actions/cache@v5
       with:
-        path: ${{ env.path }}
-        key: ${{ env.key }}
+        path: ${{ steps.set-values.outputs.path }}
+        key: ${{ steps.set-values.outputs.key }}

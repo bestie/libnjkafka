@@ -29,10 +29,13 @@ runs:
   using: composite
   steps:
     - name: Set values
+      id: set-values
       shell: bash
       run: |
         key=${{ inputs.key }} || ${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}
         path=${{ inputs.path }} || /tmp/$key.tar
+        echo "key=$key"
+        echo "path=$path"
         echo "key=$key" >> $GITHUB_STATE
         echo "path=$path" >> $GITHUB_STATE
 
@@ -40,10 +43,10 @@ runs:
       id: restore
       uses: actions/cache/restore@v5
       with:
-        path: ${{ env.path }}
-        key: ${{ env.key }}
+        path: ${{ steps.set-values.outputs.path }}
+        key: ${{ steps.set-values.outputs.key }}
         fail-on-cache-miss: true
 
     - name: Load Docker image
       shell: bash
-      run: docker load --input ${{ env.path }}
+      run: docker load --input ${{ steps.set-values.outputs.path }}
