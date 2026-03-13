@@ -251,12 +251,9 @@ jobs:
 
     - name: Install Kafka libs
       run: |
-        echo "untar"
         tar -xzf ${{ env.KAFKA_ARCHIVE }}
         rm ${{ env.KAFKA_ARCHIVE }}
-        ls -l
-        mv $(basename "${{ env.KAFKA_ARCHIVE }}") kafka
-        ls -l
+        mv $(basename -- "$f" "${{ env.KAFKA_ARCHIVE }}") kafka
         KAFKA_HOME="$PWD/kafka"
         CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
