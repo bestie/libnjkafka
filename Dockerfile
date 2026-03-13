@@ -30,7 +30,7 @@ WORKDIR /home
 ARG GRAALVM_ARCH=aarch64
 ARG JDK_VERSION=25
 ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${GRAALVM_ARCH}_bin.tar.gz
-# See https://www.oracle.com/java/technologies/jdk-script-friendly-urls/
+# See https://www.graalvm.org/latest/getting-started/linux/#script-friendly-urls
 RUN wget --quiet https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE} \
    && tar -xzf ${GRAALVM_ARCHIVE} \
    && rm ${GRAALVM_ARCHIVE} \
