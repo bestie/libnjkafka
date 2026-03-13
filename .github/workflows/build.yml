@@ -31,7 +31,7 @@ jobs:
         tag: ${{ env.DOCKER_TAG }}
         platform: ${{ matrix.docker_platform }}
         build-args: |
-          ARCHITECTURE=${{ matrix.graalvm_arch }}
+          GRAALVM_ARCH=${{ matrix.graalvm_arch }}
 
   compile:
     runs-on: ubuntu-latest
