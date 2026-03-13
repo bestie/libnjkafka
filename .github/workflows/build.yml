@@ -29,10 +29,7 @@ jobs:
     - name: Build Docker image
       if: steps.compiler-image.outputs.cache-hit != 'true'
       run: |
-        docker build \
-          --build-arg ARCHITECTURE=x64 \
-          --tag ${{ env.DOCKER_TAG }} \
-          .
+        make docker-build
         docker save ${{ env.DOCKER_TAG }} --output ${{ env.COMPILER_IMAGE_PATH }}
 
     - name: Save Docker image
@@ -247,8 +244,26 @@ jobs:
 
     - name: Build the container
       run:
-        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
+        docker build \
+          --platform=${{ env.DOCKER_PLATFORM }} \
+          --tag ${{ env.DOCKER_TAG }} \
+          --file Dockerfile.ruby \
+            .
 
     - name: Build the library
       run:
-        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
+        docker run --network=host \
+          --platform=${{ env.DOCKER_PLATFORM }} \
+          --volume ${{ github.workspace }}:/libnjkafka \
+          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+          ${{ env.DOCKER_TAG }} \
+          make lib
+        ls -l build/
+        ls -l build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: linux-binaries-${{ matrix.platform }}
+        path: build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
