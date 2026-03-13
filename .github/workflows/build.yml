@@ -191,23 +191,15 @@ jobs:
     - name: Reset mtimes
       uses: chetan/git-restore-mtime-action@v2
 
-    - name: Setup QEMU for cross-platform Docker builds
-      uses: docker/setup-qemu-action@v4
+    - name: Restore compiler Docker image from cache
+      uses: ./.github/actions/docker-gha-cache/restore
       with:
-        platforms: ${{ env.CPU_ARCH }}
-
-    - name: Build the container
-      run: |
-        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
+        tag: ${{ env.DOCKER_TAG }}
+        platform: ${{ env.DOCKER_PLATFORM }}
 
     - name: Build the library
       run: |
         DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
-
-    - name: Show the files
-      run: |
-        ls -l build
-        ls -l build/Linux-${{ env.CPU_ARCH }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
