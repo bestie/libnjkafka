@@ -218,6 +218,7 @@ jobs:
     needs: compile
     env:
       KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: localhost:9092
 
     steps:
     - uses: actions/checkout@v6
@@ -229,7 +230,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install openssl zlib tree
+        brew install openssl zlib kafka
 
     - name: Download GraalVM
       run: |
@@ -241,7 +242,6 @@ jobs:
         rm ${GRAALVM_ARCHIVE}
         mv graalvm-jdk-${JDK_VERSION}* graalvm
         GRAALVM_HOME="graalvm/Contents/Home"
-        ls -l $GRAALVM_HOME
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "PATH=$GRAALVM_HOME/bin:\$$PATH" >> $GITHUB_ENV
 
@@ -252,7 +252,6 @@ jobs:
         tar -xzf ${KAFKA_ARCHIVE}
         rm ${KAFKA_ARCHIVE}
         mv kafka_2.13-3.9.2 kafka
-        tree .
         echo "KAFKA_HOME=$PWD/kafka" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
 
