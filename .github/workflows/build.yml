@@ -142,6 +142,7 @@ jobs:
         KAFKA_TOPIC: kafka-build-topic
         KAFKA_BROKERS: localhost:9092
 
+
       services:
         broker:
           image: apache/kafka-native:3.9.2
@@ -253,13 +254,7 @@ jobs:
 
     - name: Build the library
       run: |
-        docker run --network=host \
-          --platform=${{ env.DOCKER_PLATFORM }} \
-          --volume ${{ github.workspace }}:/libnjkafka \
-          --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
-          --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-          ${{ env.DOCKER_TAG }} \
-          make lib
+        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
 
     - name: Show the files
       run: |

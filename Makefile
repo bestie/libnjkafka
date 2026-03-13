@@ -182,7 +182,7 @@ build/scripts/docker-run: FORCE
 	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --network=host \\' >> $@
-	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
+	@echo '  --env KAFKA_BROKERS=$(KAFKA_BROKERS) \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
 	@echo '  $(DOCKER_TAG) "$$@"' >> $@
