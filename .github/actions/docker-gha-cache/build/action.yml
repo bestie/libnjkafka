@@ -34,18 +34,6 @@ outputs:
     description: Cache key used for the image tar file.
     value: ${{ env.key }}
 
-outputs:
-  cache-hit:
-    description: If image was present in cache, see actions/cache.
-    value: ${{ steps.restore.outputs.cache-hit }}
-  path:
-    description: Cache path used for the image tar file.
-    value: ${{ steps.set-values.outputs.path }}
-  key:
-    description: Cache key used for the image tar file.
-    value: ${{ steps.set-values.outputs.key }}
-
-
 runs:
   using: composite
   steps:
