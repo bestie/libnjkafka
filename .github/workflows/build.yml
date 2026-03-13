@@ -193,3 +193,109 @@ jobs:
             --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
             ${{ env.DOCKER_TAG }} \
             make ruby-c-ext
+
+  build-binaries:
+    needs: compile
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-24.04-arm64
+          arch: arm64
+          graal_arch: aarch64
+          platform: linux
+          artifact_name: build-dir-linux-arm64
+        - os: macos-latest
+          arch: x64
+          graal_arch: x64
+          platform: macos
+          artifact_name: build-dir-macos-x64
+        - os: macos-14
+          arch: arm64
+          graal_arch: aarch64
+          platform: macos
+          artifact_name: build-dir-macos-arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      KAFKA_TOPIC: kafka-build-topic
+      KAFKA_BROKERS: localhost:9092
+
+    services:
+      broker:
+        image: apache/kafka-native:3.9.2
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+          KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+          KAFKA_PROCESS_ROLES: 'broker,controller'
+          KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+          KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+          KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+          KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+          CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+          KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Install dependencies
+      run: |
+        if [ "${{ matrix.platform }}" == "linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev zlib1g-dev wget unzip
+        elif [ "${{ matrix.platform }}" == "macos" ]; then
+          brew install openssl zlib
+        fi
+
+    - name: Download GraalVM
+      run: |
+        ARCHITECTURE=${{ matrix.graal_arch }}
+        JDK_VERSION=25
+        if [ "${{ matrix.platform }}" == "linux" ]; then
+          GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${ARCHITECTURE}_bin.tar.gz
+        elif [ "${{ matrix.platform }}" == "macos" ]; then
+          GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
+        fi
+        if [ "${{ matrix.platform }}" == "linux" ]; then
+          wget --quiet https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
+        elif [ "${{ matrix.platform }}" == "macos" ]; then
+          curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
+        fi
+        tar -xzf ${GRAALVM_ARCHIVE}
+        rm ${GRAALVM_ARCHIVE}
+        ln -s graalvm-jdk-${JDK_VERSION}* graalvm
+
+    - name: Download Kafka
+      run: |
+        KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
+        if [ "${{ matrix.platform }}" == "linux" ]; then
+          wget --quiet https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
+        elif [ "${{ matrix.platform }}" == "macos" ]; then
+          curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
+        fi
+        tar -xzf ${KAFKA_ARCHIVE}
+        rm ${KAFKA_ARCHIVE}
+
+    - name: Set GRAALVM_HOME
+      run: echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
+
+    - name: Build the library
+      run: make
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: build/
