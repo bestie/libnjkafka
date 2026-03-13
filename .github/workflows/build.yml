@@ -205,9 +205,7 @@ jobs:
     - name: Build the library
       run: |
         make build/scripts/docker-run
-        cat build/scripts/docker-run
-        build/scripts/docker-run uname -m
-        build/scripts/docker-run ls -l /home
+        build/scripts/docker-run make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
