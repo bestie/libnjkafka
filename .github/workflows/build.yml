@@ -241,8 +241,9 @@ jobs:
         tar -xzf ${GRAALVM_ARCHIVE}
         rm ${GRAALVM_ARCHIVE}
         mv graalvm-jdk-${JDK_VERSION}* graalvm
-        tree .
-        echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
+        GRAALVM_HOME="graalvm/Contents/Home"
+        ls -l $GRAALVM_HOME
+        echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "PATH=$GRAALVM_HOME/bin:\$$PATH" >> $GITHUB_ENV
 
     - name: Download Kafka lib
