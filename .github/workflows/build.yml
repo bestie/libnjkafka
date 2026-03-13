@@ -243,11 +243,11 @@ jobs:
         platforms: all
 
     - name: Build the container
-      run:
+      run: |
         DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-build
 
     - name: Build the library
-      run:
+      run: |
         docker run --network=host \
           --platform=${{ env.DOCKER_PLATFORM }} \
           --volume ${{ github.workspace }}:/libnjkafka \
@@ -256,7 +256,9 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make lib
 
-        ls -l build/
+    - name: Show the files
+      run: |
+        ls -l build
         ls -l build/Linux-${{ matrix.platform == 'linux/amd64' && 'x86_64' || 'arm64' }}
 
     - name: Upload build artifacts
