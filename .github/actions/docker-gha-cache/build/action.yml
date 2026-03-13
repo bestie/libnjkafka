@@ -37,8 +37,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set values
-      id: set-values
+    - name: Prepare
+      id: init
       shell: bash
       run: |
         default_key="${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}"
@@ -60,8 +60,8 @@ runs:
       uses: actions/cache@v5
       id: cache-check
       with:
-        path: ${{ steps.set-values.outputs.path }}
-        key: ${{ steps.set-values.outputs.key }}
+        path: ${{ steps.init.outputs.path }}
+        key: ${{ steps.init.outputs.key }}
         lookup-only: true
 
     - name: Build Docker image
@@ -82,11 +82,14 @@ runs:
           --platform=${{ inputs.platform }} \
           $build_args \
           .
-        docker save ${{ inputs.tag }} --output ${{ steps.set-values.outputs.path }}
+
+        mkdir -p $(dirname ${{ steps.init.outputs.path }})
+
+        docker save ${{ inputs.tag }} --output ${{ steps.init.outputs.path }}
 
     - name: Save Docker image to cache
       if: steps.cache-check.outputs.cache-hit != 'true'
       uses: actions/cache@v5
       with:
-        path: ${{ steps.set-values.outputs.path }}
-        key: ${{ steps.set-values.outputs.key }}
+        path: ${{ steps.init.outputs.path }}
+        key: ${{ steps.init.outputs.key }}
