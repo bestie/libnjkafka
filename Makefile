@@ -66,11 +66,11 @@ KAFKA_BROKERS ?= localhost:9092
 KAFKA_TOPIC ?= libnjkafka-build-topic
 
 .PHONY: dist
-dist: lib
+dist: lib $(COMBINED_HEADER)
 	mkdir -p $(BUILD_DIR)/dist
 	mkdir -p $(BUILD_DIR)/dist/include
 	mkdir -p $(BUILD_DIR)/dist/lib
-	cp $(BUILD_DIR)/include/* $(BUILD_DIR)/dist/include
+	cp $(COMBINED_HEADER) $(BUILD_DIR)/dist/include
 	cp $(SHARED_LIBRARY_OBJECT) $(BUILD_DIR)/dist/lib
 	cp $(C_API_OBJECT) $(BUILD_DIR)/dist/lib
 
