@@ -101,7 +101,6 @@ jobs:
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
-          --platform=linux/amd64 \
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
@@ -205,7 +204,9 @@ jobs:
 
     - name: Build the library
       run: |
-        DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
+        make build/scripts/docker-run
+        cat build/scripts/docker-run
+        build/scripts/docker-run make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
