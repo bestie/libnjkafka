@@ -214,3 +214,50 @@ jobs:
       with:
         name: linux-binaries-${{ env.CPU_ARCH }}
         path: build/Linux-${{ env.CPU_ARCH }}
+
+  compile-macos-arm64:
+    runs-on: macos-latest
+    needs: compile
+    env:
+      KAFKA_TOPIC: kafka-build-topic
+
+    services:
+      broker: *broker
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Reset mtimes
+      uses: chetan/git-restore-mtime-action@v2
+
+    - name: Install dependencies
+      run: |
+        brew install openssl zlib
+
+    - name: Download GraalVM
+      run: |
+        ARCHITECTURE=aarch64
+        JDK_VERSION=25
+        GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
+        curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
+        tar -xzf ${GRAALVM_ARCHIVE}
+        rm ${GRAALVM_ARCHIVE}
+        mv graalvm-jdk-${JDK_VERSION}* graalvm
+        echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
+        echo "PATH=$GRAALVM_HOME/bin:\$$PATH" >> $GITHUB_ENV
+
+    - name: Download Kafka lib
+      run: |
+        KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
+        curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
+        tar -xzf ${KAFKA_ARCHIVE}
+        rm ${KAFKA_ARCHIVE}
+        mv kafka_2.13-3.9.2 kafka
+        echo "KAFKA_HOME=$PWD/kafka" >> $GITHUB_ENV
+        echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
+
+    - name: Build the library
+      run: make
+
