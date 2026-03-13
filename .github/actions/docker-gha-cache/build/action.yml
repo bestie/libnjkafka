@@ -73,7 +73,10 @@ runs:
         lookup-only: true
 
     - name: Set up QEMU
-      if: steps.cache-check.outputs.cache-hit != 'true'
+      if: steps.cache-check.outputs.cache-hit != 'true' && (
+        (inputs.platform == 'linux/amd64' && runner.arch != 'X64') ||
+        (inputs.platform == 'linux/arm64' && runner.arch != 'ARM64')
+        )
       uses: docker/setup-qemu-action@v4
       with:
         platforms: ${{ inputs.platform }}
