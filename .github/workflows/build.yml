@@ -241,8 +241,7 @@ jobs:
     - name: Setup QEMU for cross-platform Docker builds
       uses: docker/setup-qemu-action@v2
       with:
-        platforms:
-          - ${{ matrix.platform }}
+        platforms: all
 
     - name: Build the container
       run:
