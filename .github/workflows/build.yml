@@ -207,6 +207,8 @@ jobs:
         make build/scripts/docker-run
         cat build/scripts/docker-run
         build/scripts/docker-run bash -c "env | sort"
+        build/scripts/docker-run ls -l /home
+        build/scripts/docker-run cat /home/download.log
         build/scripts/docker-run make
 
     - name: Upload build artifacts
@@ -270,7 +272,7 @@ jobs:
           echo "which javac"
           which javac
           echo "which kafka_topics.sh"
-          which kafka_topics.sh
+          which kafka-topics.sh
 
           env | sort
 
