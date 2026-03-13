@@ -253,7 +253,7 @@ jobs:
       run: |
         tar -xzf ${{ env.KAFKA_ARCHIVE }}
         rm ${{ env.KAFKA_ARCHIVE }}
-        mv $(basename -- "$f" "${{ env.KAFKA_ARCHIVE }}") kafka
+        mv kafka_* kafka
         KAFKA_HOME="$PWD/kafka"
         CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
