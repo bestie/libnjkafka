@@ -28,6 +28,7 @@ ifeq ($(OS),Darwin)
 endif
 
 # JAVA compilation
+JAVA_HOME = $(GRAALVM_HOME)/bin/javac
 JAVAC = $(GRAALVM_HOME)/bin/javac
 JAVAC_VERSION = 22
 NATIVE_IMAGE = $(GRAALVM_HOME)/bin/native-image
