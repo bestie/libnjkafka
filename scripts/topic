@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -x
 
@@ -37,14 +37,17 @@ clear_topic() {
 
 # Function to delete the Kafka topic
 delete_topic() {
-  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" --delete --topic "$KAFKA_TOPIC"
-  echo "Kafka topic '$KAFKA_TOPIC' has been deleted."
+  kafka-topics.sh --bootstrap-server "$KAFKA_BROKERS" --delete --topic "$KAFKA_TOPIC" \
+    && echo "Kafka topic '$KAFKA_TOPIC' has been deleted."
 }
 
 prepare() {
   delete_topic
   create_topic
 }
+
+echo "JAVA_HOME = $JAVA_HOME"
+echo "scripts/topic $1"
 
 # Parse subcommands
 case "$1" in
