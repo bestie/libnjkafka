@@ -206,6 +206,7 @@ jobs:
       run: |
         make build/scripts/docker-run
         cat build/scripts/docker-run
+        build/scripts/docker-run uname -m
         build/scripts/docker-run make
 
     - name: Upload build artifacts
