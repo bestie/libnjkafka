@@ -65,6 +65,15 @@ SHARED_LIBRARY_OBJECT = $(BUILD_DIR)/libnjkafka.$(LIB_EXT)
 KAFKA_BROKERS ?= localhost:9092
 KAFKA_TOPIC ?= libnjkafka-build-topic
 
+.PHONY: dist
+dist: lib
+	mkdir -p $(BUILD_DIR)/dist
+	mkdir -p $(BUILD_DIR)/dist/include
+	mkdir -p $(BUILD_DIR)/dist/lib
+	cp $(BUILD_DIR)/include/* $(BUILD_DIR)/dist/include
+	cp $(SHARED_LIBRARY_OBJECT) $(BUILD_DIR)/dist/lib
+	cp $(C_API_OBJECT) $(BUILD_DIR)/dist/lib
+
 .PHONY: lib
 lib: $(SHARED_LIBRARY_OBJECT)
 	@echo "Build complete ✅ ✅ ✅"
@@ -79,15 +88,6 @@ native: $(GRAALVM_NATIVE_OBJECT)
 java-demo: java
 	./scripts/topic prepare
 	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) java -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
-
-.PHONY: release
-release: $(BUILD_DIR)
-	mkdir -p $(BUILD_DIR)/dist
-	mkdir -p $(BUILD_DIR)/dist/include
-	mkdir -p $(BUILD_DIR)/dist/lib
-	cp $(BUILD_DIR)/include/* $(BUILD_DIR)/dist/include
-	cp $(SHARED_LIBRARY_OBJECT) $(BUILD_DIR)/dist/lib
-	cp $(C_API_OBJECT) $(BUILD_DIR)/dist/lib
 
 $(COMBINED_HEADER): $(STRUCT_DEFINITIONS) $(CALLBACK_DEFINITIONS) $(PUBLIC_C_API_HEADERS)
 	mkdir -p $(BUILD_DIR)/include
