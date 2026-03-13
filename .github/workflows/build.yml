@@ -231,21 +231,15 @@ jobs:
         brew install kafka
         brew services start kafka
 
-    - name: Cache GraalVM download
-      id: graalvm-cache
-      uses: actions/cache@v5
-      with:
-        path: ${{ env.GRAALVM_ARCHIVE }}
-        key: ${{ env.GRAALVM_ARCHIVE }}
-
     - name: Download GraalVM
       run: |
-        ls ${{ env.GRAALVM_ARCHIVE }} || curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
+        curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
 
     - name: Install GraalVM
       run: |
         tar -xzf ${{ env.GRAALVM_ARCHIVE }}
-        mv graalvm-jdk-${{ env.JDK_VERSION }}.* graalvm
+        rm ${{ env.GRAALVM_ARCHIVE }}
+        mv graalvm-jdk-${{ env.JDK_VERSION }}* graalvm
         GRAALVM_HOME="$PWD/graalvm/Contents/Home"
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
@@ -253,12 +247,13 @@ jobs:
 
     - name: Download Kafka libs
       run: |
-        ls ${{ env.KAFKA_ARCHIVE }} || curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
+        curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
 
     - name: Install Kafka libs
       run: |
         echo "untar"
         tar -xzf ${{ env.KAFKA_ARCHIVE }}
+        rm ${{ env.KAFKA_ARCHIVE }}
         ls -l
         echo "mv $(basename ${{ env.KAFKA_ARCHIVE }}) kafka"
         mv $(basename ${{ env.KAFKA_ARCHIVE }}) kafka
