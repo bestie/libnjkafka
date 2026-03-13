@@ -215,7 +215,6 @@ jobs:
 
   compile-macos-arm64:
     runs-on: macos-latest
-    needs: compile
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
@@ -252,7 +251,8 @@ jobs:
         tar -xzf ${KAFKA_ARCHIVE}
         rm ${KAFKA_ARCHIVE}
         mv kafka_2.13-3.9.2 kafka
-        echo "KAFKA_HOME=$PWD/kafka" >> $GITHUB_ENV
+        KAFKA_HOME=$PWD/kafka
+        echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
         ls $KAFKA_HOME/bin
 
