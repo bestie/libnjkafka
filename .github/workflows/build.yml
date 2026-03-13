@@ -221,9 +221,6 @@ jobs:
     env:
       KAFKA_TOPIC: kafka-build-topic
 
-    services:
-      broker: *broker
-
     steps:
     - uses: actions/checkout@v6
       with:
