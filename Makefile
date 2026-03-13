@@ -118,6 +118,7 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 		-H:NativeLinkerOption=-Wl,$(NATIVE_IMAGE_LINKER_FLAGS)
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
+	bash scripts/topic create
 	@echo "Creating directory $(GRAALVM_AGENT_CONFIG_DIR)"
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
 	@echo "👍 metadata dir"
