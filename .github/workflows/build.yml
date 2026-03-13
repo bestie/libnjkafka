@@ -24,7 +24,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
-
     - name: Build the compiler Docker image
       uses: ./.github/actions/docker-gha-cache/build
       with:
@@ -247,9 +246,8 @@ jobs:
         key: ${{ env.GRAALVM_ARCHIVE }}
 
     - name: Download GraalVM
-      if: steps.graalvm-cache.outputs.cache-hit != 'true'
       run: |
-        curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
+        ls ${{ env.GRAALVM_ARCHIVE }} || curl -s -L -o ${{ env.GRAALVM_ARCHIVE }} https://download.oracle.com/graalvm/${{ env.JDK_VERSION }}/latest/${{ env.GRAALVM_ARCHIVE }}
 
     - name: Install GraalVM
       run: |
@@ -264,7 +262,7 @@ jobs:
 
     - name: Download Kafka libs
       run: |
-        curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
+        ls ${{ env.KAFKA_ARCHIVE }} || curl -s -L -o ${{ env.KAFKA_ARCHIVE }} https://downloads.apache.org/kafka/3.9.2/${{ env.KAFKA_ARCHIVE }}
 
     - name: Install Kafka libs
       run: |
