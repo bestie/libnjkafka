@@ -131,8 +131,8 @@ $(JAVA_ENTRYPOINTS): $(JAVA_SRC)/*.java $(STRUCT_DEFINITIONS)
 
 ## Docker #####################################################################
 
-# DOCKER_TAG ?= lib$(LIB_NAME):latest
-DOCKER_TAG = ci
+DEFAULT_DOCKER_TAG ?= lib$(LIB_NAME):latest
+DOCKER_TAG ?= $(DEFAULT_DOCKER_TAG)
 DOCKER_PROJECT_HOME = /libnjkafka
 ifeq ($(PLATFORM),x86_64)
 	NATIVE_DOCKER_PLATFORM = linux/amd64

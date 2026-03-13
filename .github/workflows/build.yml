@@ -253,7 +253,7 @@ jobs:
           --volume ${{ github.workspace }}:/libnjkafka \
           --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
           --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-          ci \
+          ${{ env.DOCKER_TAG }} \
           make lib
 
         ls -l build/
