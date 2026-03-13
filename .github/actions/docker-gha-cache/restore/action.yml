@@ -32,8 +32,16 @@ runs:
       id: set-values
       shell: bash
       run: |
-        key=${{ inputs.key }} || ${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}
-        path=${{ inputs.path }} || /tmp/$key.tar
+        default_key="${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}"
+        echo "default_key=$default_key"
+        input_key="${{ inputs.key }}"
+        key=${intput_key:-$default_key}
+
+        default_path="/tmp/$key.tar"
+        echo "default_path=$default_path"
+        input_path="${{ inputs.path }}"
+        path=${input_path:-$default_path}
+
         echo "key=$key"
         echo "path=$path"
         echo "key=$key" >> $GITHUB_STATE
