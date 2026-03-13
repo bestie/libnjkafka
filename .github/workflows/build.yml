@@ -194,17 +194,9 @@ jobs:
             ${{ env.DOCKER_TAG }} \
             make ruby-c-ext
 
-  build-binaries:
+  compile-macos-arm64:
+    runs-on: macos-latest
     needs: compile
-    strategy:
-      matrix:
-        include:
-        - os: ubuntu-24.04-arm64
-          arch: arm64
-          graal_arch: aarch64
-          platform: linux
-          artifact_name: build-dir-linux-arm64
-    runs-on: ${{ matrix.os }}
     env:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
@@ -242,44 +234,27 @@ jobs:
 
     - name: Install dependencies
       run: |
-        if [ "${{ matrix.platform }}" == "linux" ]; then
-          sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev zlib1g-dev wget unzip
-        elif [ "${{ matrix.platform }}" == "macos" ]; then
-          brew install openssl zlib
-        fi
+        brew install openssl zlib 
 
     - name: Download GraalVM
       run: |
-        ARCHITECTURE=${{ matrix.graal_arch }}
+        ARCHITECTURE=aarch64
         JDK_VERSION=25
-        if [ "${{ matrix.platform }}" == "linux" ]; then
-          GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${ARCHITECTURE}_bin.tar.gz
-        elif [ "${{ matrix.platform }}" == "macos" ]; then
-          GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
-        fi
-        if [ "${{ matrix.platform }}" == "linux" ]; then
-          wget --quiet https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
-        elif [ "${{ matrix.platform }}" == "macos" ]; then
-          curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
-        fi
+        GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
+        curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
         tar -xzf ${GRAALVM_ARCHIVE}
         rm ${GRAALVM_ARCHIVE}
-        ln -s graalvm-jdk-${JDK_VERSION}* graalvm
+        mv graalvm-jdk-${JDK_VERSION}* graalvm
+        echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
+        echo "PATH=$PWD/graalvm/bin:\$$PATH" >> $GITHUB_ENV
 
-    - name: Download Kafka
+    - name: Download Kafka lib
       run: |
         KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
-        if [ "${{ matrix.platform }}" == "linux" ]; then
-          wget --quiet https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
-        elif [ "${{ matrix.platform }}" == "macos" ]; then
-          curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
-        fi
+        curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
         tar -xzf ${KAFKA_ARCHIVE}
         rm ${KAFKA_ARCHIVE}
-
-    - name: Set GRAALVM_HOME
-      run: echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
+        mv kafka_2.13-3.9.2 kafka
 
     - name: Build the library
       run: make
@@ -287,5 +262,5 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
       with:
-        name: ${{ matrix.artifact_name }}
-        path: build/
+        name: build-mdir-macos-arm64
+        path: build/Darwin-arm64/
