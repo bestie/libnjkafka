@@ -249,7 +249,7 @@ jobs:
         GRAALVM_HOME="graalvm/Contents/Home"
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
-        echo "PATH=$GRAALVM_HOME/bin:\$$PATH" >> $GITHUB_ENV
+        echo "PATH=$GRAALVM_HOME/bin:$PATH" >> $GITHUB_ENV
 
     - name: Download Kafka lib
       run: |
@@ -260,7 +260,7 @@ jobs:
         mv kafka_2.13-3.9.2 kafka
         KAFKA_HOME=$PWD/kafka
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
-        echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
+        echo "PATH=$KAFKA_HOME/bin:$PATH" >> $GITHUB_ENV
 
     - name: Build the library
       run: |
