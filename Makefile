@@ -72,7 +72,7 @@ dist: lib $(COMBINED_HEADER)
 	mkdir -p $(BUILD_DIR)/dist/lib
 	cp $(COMBINED_HEADER) $(BUILD_DIR)/dist/include
 	cp $(SHARED_LIBRARY_OBJECT) $(BUILD_DIR)/dist/lib
-	cp $(C_API_OBJECT) $(BUILD_DIR)/dist/lib
+	cp $(GRAALVM_NATIVE_OBJECT) $(BUILD_DIR)/dist/lib
 
 .PHONY: lib
 lib: $(SHARED_LIBRARY_OBJECT)
