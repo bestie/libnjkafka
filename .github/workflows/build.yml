@@ -254,7 +254,9 @@ jobs:
         mv kafka_2.13-3.9.2 kafka
         echo "KAFKA_HOME=$PWD/kafka" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
+        ls $KAFKA_HOME/bin
 
     - name: Build the library
-      run: make
-
+      run: |
+          echo "path=$PATH"
+          make
