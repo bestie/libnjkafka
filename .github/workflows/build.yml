@@ -271,6 +271,8 @@ jobs:
           echo "runner OS = ${{ runner.os}}"
           echo "which javac"
           which javac
+          echo "which java"
+          which java
           echo "which kafka_topics.sh"
           which kafka-topics.sh
 

@@ -118,9 +118,14 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 		-H:NativeLinkerOption=-Wl,$(NATIVE_IMAGE_LINKER_FLAGS)
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
+	@echo "preparing topic"
 	./scripts/topic prepare
+	@echo "Creating directory $(GRAALVM_AGENT_CONFIG_DIR)"
 	mkdir -p $(GRAALVM_AGENT_CONFIG_DIR)
-	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) -cp $(CLASSPATH) com.zendesk.libnjkafka.JavaDemo
+	KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) \ 
+		java -agentlib:native-image-agent=config-output-dir=$(GRAALVM_AGENT_CONFIG_DIR) \
+    	-cp $(CLASSPATH) \
+			com.zendesk.libnjkafka.JavaDemo
 
 .PHONY: java
 java: $(JAVA_ENTRYPOINTS)

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 # Check if the required environment variables are set
 if [ -z "$KAFKA_BROKERS" ] || [ -z "$KAFKA_TOPIC" ]; then
   echo "Environment variables KAFKA_BROKERS and KAFKA_TOPIC must be set."
