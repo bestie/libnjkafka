@@ -180,16 +180,11 @@ build/scripts/docker-run: FORCE
 	@echo '#!/usr/bin/env sh' > $@
 	@echo 'docker run \\' >> $@
 	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
-	@echo '  --interactive --tty \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
-	@echo '  --env HISTFILE=/root/.bash_history/bash_history \\' >> $@
-	@echo '  --env HISTSIZE=10000 \\' >> $@
-	@echo '  --env HISTFILESIZE=100000 \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
-	@echo '  --volume libnjkafka-bash-history-vol:/root/.bash_history \\' >> $@
 	@echo '  $(DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
 
