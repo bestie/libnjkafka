@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  COMPILER_IMAGE_PATH: /tmp/compiler-image.tar
-
 jobs:
   compiler-docker-image:
     runs-on: ubuntu-latest
@@ -168,8 +165,8 @@ jobs:
         include:
           - docker_platform: linux/amd64
             cpu_arch: x86_64
-          # - docker_platform: linux/arm64
-          #   cpu_arch: arm64
+          - docker_platform: linux/arm64
+            cpu_arch: arm64
 
     env:
       DOCKER_TAG: libnjkafka:gha
@@ -204,10 +201,6 @@ jobs:
     - name: Build the library
       run: |
         make build/scripts/docker-run
-        cat build/scripts/docker-run
-        build/scripts/docker-run bash -c "env | sort"
-        build/scripts/docker-run ls -l /home
-        build/scripts/docker-run cat /home/download.log
         build/scripts/docker-run make
 
     - name: Upload build artifacts
@@ -252,8 +245,7 @@ jobs:
     - name: Install GraalVM
       run: |
         tar -xzf ${{ env.GRAALVM_ARCHIVE }}
-        rm ${{ env.GRAALVM_ARCHIVE }}
-        mv graalvm-jdk-${{ env.JDK_VERSION }}* graalvm
+        mv graalvm-jdk-${{ env.JDK_VERSION }}.* graalvm
         GRAALVM_HOME="$PWD/graalvm/Contents/Home"
         echo "GRAALVM_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
         echo "JAVA_HOME=$GRAALVM_HOME" >> $GITHUB_ENV
@@ -266,8 +258,7 @@ jobs:
     - name: Install Kafka libs
       run: |
         tar -xzf ${{ env.KAFKA_ARCHIVE }}
-        rm ${{ env.KAFKA_ARCHIVE }}
-        mv kafka_2.13-3.9.2 kafka
+        mv $(basename ${{ env.KAFKA_ARCHIVE }}) kafka
         KAFKA_HOME="$PWD/kafka"
         CLASSPATH="$KAFKA_HOME/libs/*:src/main/resources:bin"
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV

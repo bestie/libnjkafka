@@ -26,9 +26,8 @@ RUN apt-get update && \
 
 WORKDIR /home
 
-ARG GRAALVM_ARCH=aarch64
-
 # Download GraalVM
+ARG GRAALVM_ARCH=aarch64
 ARG JDK_VERSION=25
 ARG GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_linux-${GRAALVM_ARCH}_bin.tar.gz
 # See https://www.oracle.com/java/technologies/jdk-script-friendly-urls/
