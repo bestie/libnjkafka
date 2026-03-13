@@ -18,26 +18,12 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - name: Check Docker image cache
-      uses: actions/cache@v5
-      id: compiler-image
+    - name: Build the compiler Docker image
+      uses: ./.github/actions/docker-gha-cache/build
       with:
-        path: ${{ env.COMPILER_IMAGE_PATH }}
-        key: compiler-image-${{ hashFiles('Dockerfile') }}
-        lookup-only: true
-
-    - name: Build Docker image
-      if: steps.compiler-image.outputs.cache-hit != 'true'
-      run: |
-        make docker-build
-        docker save ${{ env.DOCKER_TAG }} --output ${{ env.COMPILER_IMAGE_PATH }}
-
-    - name: Save Docker image
-      if: steps.compiler-image.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v5
-      with:
-        path: ${{ env.COMPILER_IMAGE_PATH }}
-        key: compiler-image-${{ hashFiles('Dockerfile') }}
+        tag: ${{ env.DOCKER_TAG }}
+        build-args: |
+          ARCHITECTURE=x64
 
   compile:
     runs-on: ubuntu-latest
@@ -89,14 +75,9 @@ jobs:
         path: build/
 
     - name: Restore compiler Docker image from cache
-      uses: actions/cache/restore@v5
+      uses: ./.github/actions/docker-gha-cache/restore
       with:
-        path: ${{ env.COMPILER_IMAGE_PATH }}
-        key: compiler-image-${{ hashFiles('Dockerfile') }}
-        fail-on-cache-miss: true
-
-    - name: Load Docker image
-      run: docker load --input ${{ env.COMPILER_IMAGE_PATH }}
+        tag: ${{ env.DOCKER_TAG }}
 
     - name: Build the library
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
@@ -202,8 +183,8 @@ jobs:
         include:
           - docker_platform: linux/amd64
             cpu_arch: x86_64
-          - docker_platform: linux/arm64
-            cpu_arch: arm64
+          # - docker_platform: linux/arm64
+          #   cpu_arch: arm64
 
     env:
       DOCKER_TAG: libnjkafka:gha

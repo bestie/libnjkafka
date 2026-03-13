@@ -1,0 +1,49 @@
+name: docker-image-cache/restore
+description: Cache docker images as tar files
+
+inputs:
+  tag:
+    description: Docker image tag
+    required: true
+  key:
+    description: Cache key, see actions/cache
+    required: false
+  path:
+    description: Cache path, see actions/cache
+    required: false
+  platform:
+    description: Docker build platform
+    required: false
+    default: linux/amd64
+  file:
+    description: Dockerfile path
+    required: false
+    default: Dockerfile
+
+outputs:
+  cache-hit:
+    description: If image was present in cache, see actions/cache.
+    value: ${{ steps.restore.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set values
+      shell: bash
+      run: |
+        key=${{ inputs.key }} || ${{ inputs.tag }}-${{ inputs.platform }}-${{ hashFiles(inputs.file) }}
+        path=${{ inputs.path }} || /tmp/$key.tar
+        echo "key=$key" >> $GITHUB_STATE
+        echo "path=$path" >> $GITHUB_STATE
+
+    - name: Restore image
+      id: restore
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ env.path }}
+        key: ${{ env.key }}
+        fail-on-cache-miss: true
+
+    - name: Load Docker image
+      shell: bash
+      run: docker load --input ${{ env.path }}
