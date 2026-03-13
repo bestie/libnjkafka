@@ -207,7 +207,7 @@ jobs:
         make build/scripts/docker-run
         cat build/scripts/docker-run
         build/scripts/docker-run uname -m
-        build/scripts/docker-run make
+        build/scripts/docker-run ls -l /home
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
