@@ -205,12 +205,14 @@ jobs:
     - name: Build the library
       run: |
         make build/scripts/docker-run
+        cat build/scripts/docker-run
+        build/scripts/docker-run bash -c "env | sort"
         build/scripts/docker-run make
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v6
       with:
-        name: linux-binaries-${{ env.CPU_ARCH }}
+        name: linux-${{ env.CPU_ARCH }}
         path: build/Linux-${{ env.CPU_ARCH }}
 
   compile-macos-arm64:
@@ -259,9 +261,14 @@ jobs:
         KAFKA_HOME=$PWD/kafka
         echo "KAFKA_HOME=$KAFKA_HOME" >> $GITHUB_ENV
         echo "PATH=$KAFKA_HOME/bin:\$$PATH" >> $GITHUB_ENV
-        ls $KAFKA_HOME/bin
 
     - name: Build the library
       run: |
-          echo "path=$PATH"
+          echo "runner OS = ${{ runner.os}}"
           make
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: macos-arm64
+        path: build/Darwin-arm64/dist
