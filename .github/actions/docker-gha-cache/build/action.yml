@@ -91,8 +91,6 @@ runs:
       run: |
         mkdir -p $(dirname ${{ steps.init.outputs.path }})
 
-        echo "build_args: ${{ steps.init.outputs.build_args }}"
-
         docker buildx build \
           ${{ steps.init.build_args }} \
           --tag ${{ inputs.tag }} \
