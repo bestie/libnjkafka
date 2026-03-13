@@ -112,6 +112,7 @@ jobs:
           make
 
     - name: Run the C test program
+      if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       run: |
         docker run --network=host \
           --platform=linux/amd64 \
@@ -195,8 +196,9 @@ jobs:
             make ruby-c-ext
 
   linux-binaries:
-    needs: compile
     runs-on: ubuntu-latest
+    needs:
+      - compiler-docker-image
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
