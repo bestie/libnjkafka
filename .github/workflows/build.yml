@@ -198,14 +198,18 @@ jobs:
       - compiler-docker-image
     strategy:
       matrix:
-        platform: [amd64, arm64]
+        include:
+          - docker_platform: linux/amd64
+            cpu_arch: x86_64
+          - docker_platform: linux/arm64
+            cpu_arch: arm64
 
     env:
       DOCKER_TAG: libnjkafka:gha
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
-      DOCKER_PLATFORM: linux/${{ matrix.platform }}
-      CPU_ARCH: ${{ matrix.platform == 'amd64' && 'x86_64' || 'arm64' }}
+      DOCKER_PLATFORM: ${{ matrix.docker_platform }}
+      CPU_ARCH: ${{ matrix.cpu_arch }}
 
     services:
       broker:
