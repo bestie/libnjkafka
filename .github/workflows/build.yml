@@ -206,7 +206,7 @@ jobs:
       KAFKA_TOPIC: kafka-build-topic
       KAFKA_BROKERS: localhost:9092
       DOCKER_PLATFORM: ${{ matrix.platform }}
-    
+
     services:
       broker:
         image: apache/kafka-native:3.9.2
@@ -229,7 +229,7 @@ jobs:
           KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
           KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
           KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-      
+
     steps:
     - uses: actions/checkout@v6
       with:
@@ -245,51 +245,3 @@ jobs:
     - name: Build the library
       run:
         DOCKER_PLATFORM=${{ env.DOCKER_PLATFORM }} make docker-make
-
-  compile-macos-arm64:
-    runs-on: macos-latest
-    needs: compile
-    env:
-      KAFKA_TOPIC: kafka-build-topic
-      KAFKA_BROKERS: localhost:9092
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Reset mtimes
-      uses: chetan/git-restore-mtime-action@v2
-
-    - name: Install dependencies
-      run: |
-        brew install openssl zlib 
-
-    - name: Download GraalVM
-      run: |
-        ARCHITECTURE=aarch64
-        JDK_VERSION=25
-        GRAALVM_ARCHIVE=graalvm-jdk-${JDK_VERSION}_macos-${ARCHITECTURE}_bin.tar.gz
-        curl -s -L -o ${GRAALVM_ARCHIVE} https://download.oracle.com/graalvm/${JDK_VERSION}/latest/${GRAALVM_ARCHIVE}
-        tar -xzf ${GRAALVM_ARCHIVE}
-        rm ${GRAALVM_ARCHIVE}
-        mv graalvm-jdk-${JDK_VERSION}* graalvm
-        echo "GRAALVM_HOME=$PWD/graalvm" >> $GITHUB_ENV
-        echo "PATH=$PWD/graalvm/bin:\$$PATH" >> $GITHUB_ENV
-
-    - name: Download Kafka lib
-      run: |
-        KAFKA_ARCHIVE=kafka_2.13-3.9.2.tgz
-        curl -s -L -o ${KAFKA_ARCHIVE} https://downloads.apache.org/kafka/3.9.2/${KAFKA_ARCHIVE}
-        tar -xzf ${KAFKA_ARCHIVE}
-        rm ${KAFKA_ARCHIVE}
-        mv kafka_2.13-3.9.2 kafka
-
-    - name: Build the library
-      run: make
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v6
-      with:
-        name: build-mdir-macos-arm64
-        path: build/Darwin-arm64/
