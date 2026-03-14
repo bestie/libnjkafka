@@ -16,8 +16,8 @@ jobs:
         include:
           - docker_platform: linux/amd64
             graalvm_arch: x64
-          - docker_platform: linux/arm64
-            graalvm_arch: aarch64
+          # - docker_platform: linux/arm64
+          #   graalvm_arch: aarch64
 
     steps:
     - uses: actions/checkout@v6
@@ -165,8 +165,8 @@ jobs:
         include:
           - docker_platform: linux/amd64
             cpu_arch: x86_64
-          - docker_platform: linux/arm64
-            cpu_arch: arm64
+          # - docker_platform: linux/arm64
+          #   cpu_arch: arm64
 
     env:
       DOCKER_TAG: libnjkafka:gha
