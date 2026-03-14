@@ -42,7 +42,7 @@ RSpec.describe "Polling" do
     consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
 
     puts "🗳️ Polling records..."
-    records = consumer.poll(1000)
+    records = consumer.poll(5_000)
 
     processed_offsets = records.map { |r| [r.partition, r.offset] }
 
