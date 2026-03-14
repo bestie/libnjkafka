@@ -1,5 +1,3 @@
-require "spec_helper"
-
 require "securerandom"
 
 RSpec.describe "Polling" do

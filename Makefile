@@ -209,7 +209,12 @@ GEM_DIR=$(PROJECT_HOME)/rubygem
 
 RUBY_C_EXT_BUNDLE = $(GEM_DIR)/ext/libnjkafka_ext.bundle
 RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
-RUBY_DOCKER_TAG = libnjkafka-ruby
+RUBY_DOCKER_TAG = ruby:4.0.1-bookworm
+RUBY_DOCKER_BUILD_STUB = $(BUILD_BASE_DIR)/ruby_docker_build_stub_$(DOCKER_PLATFORM_FILE_FRIENDLY)
+
+.PHONY: ruby-docker-test
+ruby-docker-test: ruby-docker-build
+	$(RUBY_DOCKER_SCRIPT) make ruby-clean ruby-test
 
 $(RUBY_DOCKER_SCRIPT): Makefile
 	@mkdir -p build/scripts
@@ -217,20 +222,24 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@echo 'docker run \\' >> $@
 	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
 	@echo '  --rm \\' >> $@
-	@echo '  --interactive --tty \\' >> $@
 	@echo '  --network=host \\' >> $@
 	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
+	@echo '  --workdir=/libnjkafka \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
 	@echo '  $(RUBY_DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
 
+.PHONY: ruby-gem
+ruby-gem:
+	cd $(GEM_DIR) && bundle exec rake build
+
 .PHONY: ruby-test
 ruby-test: $(RUBY_C_EXT_BUNDLE)
-	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR) && \
 		KAFKA_BROKERS=$(KAFKA_BROKERS) \
 		KAFKA_TOPIC=$(KAFKA_TOPIC) \
+		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 		bundle exec rspec
 
 .PHONY: ruby-c-ext
@@ -242,11 +251,11 @@ $(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb
 		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
 		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 		bundle exec ruby extconf.rb \
-		&& make
+		&& make \
+		&& echo "💎 gem build successful"
 
 .PHONY: ruby-clean
 ruby-clean:
-	rm -rf $(GEM_DEPENDENDENCIES)
 	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.bundle*
 	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.o
 	rm -f $(GEM_DIR)/ext/Makefile
@@ -276,7 +285,6 @@ compile_flags.txt: Makefile
 	echo -Iinclude >> compile_flags.txt
 	echo -I$(BUILD_DIR) >> compile_flags.txt
 	echo -L$(BUILD_DIR) >> compile_flags.txt
-
 
 .PHONY: clean-all
 clean-all: ruby-clean

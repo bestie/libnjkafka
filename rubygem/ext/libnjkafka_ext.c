@@ -376,7 +376,7 @@ static VALUE mod_teardown_current_thread(VALUE value) {
     return value;
 }
 
-void Init_libnjkafka_ext() {
+void Init_libnjkafka_ext(void*) {
     libnjkafka_init();
     rb_set_end_proc(end_proc_teardown, Qnil);
 
