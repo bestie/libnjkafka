@@ -103,12 +103,6 @@ jobs:
           ${{ env.DOCKER_TAG }} \
           make c-demo
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v6
-      with:
-        name: build-dir
-        path: build/
-
     - name: Save build directory to the cache
       if: steps.native-binaries-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
@@ -137,23 +131,13 @@ jobs:
           name: build-dir
           path: ./build
 
-      - name: Compile the Ruby C extension
+      - name: Compile the Ruby C extension and run the tests
         run: |
-          docker run --network=host \
-            --volume ${{ github.workspace }}:/libnjkafka \
-            --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
-            --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-            ${{ env.DOCKER_TAG }} \
-            make ruby-c-ext
+          make ruby-docker-test
 
-      - name: Run the Ruby tests
+      - name: Build the gem
         run: |
-          docker run --network=host \
-            --volume ${{ github.workspace }}:/libnjkafka \
-            --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
-            --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
-            ${{ env.DOCKER_TAG }} \
-            make ruby-test
+          ./build/scripts/ruby-docker-run make ruby-gem
 
   linux-binaries:
     runs-on: ubuntu-latest

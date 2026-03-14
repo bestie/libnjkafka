@@ -208,16 +208,16 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 GEM_DIR=$(PROJECT_HOME)/rubygem
 
 RUBY_C_EXT_BUNDLE = $(GEM_DIR)/ext/libnjkafka_ext.bundle
-RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
+RUBY_DOCKER_SCRIPT = ./build/scripts/ruby-docker-run
 RUBY_DOCKER_TAG = ruby:4.0.1-bookworm
 RUBY_DOCKER_BUILD_STUB = $(BUILD_BASE_DIR)/ruby_docker_build_stub_$(DOCKER_PLATFORM_FILE_FRIENDLY)
 
 .PHONY: ruby-docker-test
-ruby-docker-test: ruby-docker-build
-	$(RUBY_DOCKER_SCRIPT) make ruby-clean ruby-test
+ruby-docker-test: $(RUBY_DOCKER_SCRIPT)
+	$(RUBY_DOCKER_SCRIPT) make ruby-test
 
 $(RUBY_DOCKER_SCRIPT): Makefile
-	@mkdir -p build/scripts
+	mkdir -p build/scripts
 	@echo '#!/usr/bin/env sh' > $@
 	@echo 'docker run \\' >> $@
 	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
@@ -228,14 +228,16 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@echo '  --workdir=/libnjkafka \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
 	@echo '  $(RUBY_DOCKER_TAG) "$$@"' >> $@
-	@chmod +x $@
+	chmod +x $@
 
 .PHONY: ruby-gem
-ruby-gem:
+ruby-gem: ruby-test
+	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR) && bundle exec rake build
 
 .PHONY: ruby-test
 ruby-test: $(RUBY_C_EXT_BUNDLE)
+	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR) && \
 		KAFKA_BROKERS=$(KAFKA_BROKERS) \
 		KAFKA_TOPIC=$(KAFKA_TOPIC) \
@@ -245,7 +247,7 @@ ruby-test: $(RUBY_C_EXT_BUNDLE)
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb
+$(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb $(GEM_DIR)/ext/*.c
 	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR)/ext && \
 		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
