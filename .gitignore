@@ -4,4 +4,11 @@ bin/*
 cbin/*
 compile_flags.txt
 
-demos/ruby/build/*
+*.log
+
+rubygem/ext/Makefile
+rubygem/ext/*.o
+rubygem/ext/*.so
+rubygem/ext/*.bundle
+rubygem/ext/*.dSYM
+rubygem/pkg

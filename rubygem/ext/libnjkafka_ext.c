@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "libnjkafka.h"
-#include "libnjkafka_callbacks.h"
 
 typedef struct {
     VALUE listener_obj;

@@ -1,5 +1,6 @@
 require "forwardable"
-require File.join(ENV.fetch("C_EXT_PATH"), "libnjkafka_ext")
+
+require_relative "../ext/libnjkafka_ext"
 
 module LibNJKafka
   module_function

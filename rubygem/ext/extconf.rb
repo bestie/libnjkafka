@@ -1,11 +1,11 @@
 require 'mkmf'
 
-lib_dir = File.expand_path(ENV.fetch("LIB_DIR"))
-include_dir = lib_dir
+dist_dir = File.expand_path(ENV.fetch("DIST_DIR"))
+lib_dir = File.join(dist_dir, "lib")
+include_dir = File.join(dist_dir, "include")
 
 $LDFLAGS ||= ""
 $LDFLAGS << " -L#{lib_dir} -Wl,-rpath,#{lib_dir}"
-$LIBS << " -lnjkafka"
 
 dir_config('libnjkafka', include_dir, lib_dir)
 

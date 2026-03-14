@@ -203,15 +203,15 @@ docker-bash: build/scripts/docker-run
 
 DEMO_DIR=$(PROJECT_HOME)/demos
 
-## Ruby demo ##################################################################
+## Ruby gem ###################################################################
 
-.PHONY: ruby-clean
-ruby-clean:
-	rm -rf $(DEMO_DIR)/ruby/build/*
+GEM_DIR=$(PROJECT_HOME)/rubygem
 
-RUBY_C_EXT_BUNDLE = $(DEMO_DIR)/ruby/build/libnjkafka.bundle
+BUNDLE_EXEC ?= bundle exec
+
+RUBY_C_EXT_BUNDLE = $(GEM_DIR)/ext/libnjkafka_ext.bundle
 RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
-RUBY_DOCKER_TAG = libnjkafka-ruby-demo
+RUBY_DOCKER_TAG = libnjkafka-ruby
 
 $(RUBY_DOCKER_SCRIPT): Makefile
 	@mkdir -p build/scripts
@@ -227,37 +227,29 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@echo '  $(RUBY_DOCKER_TAG) "$$@"' >> $@
 	@chmod +x $@
 
-docker-ruby-demo: $(RUBY_DOCKER_SCRIPT)
-	docker run \
-		--interactive --tty \
-		--rm \
-		--network=host \
-		--env KAFKA_BROKERS=host.docker.internal:9092 \
-		--env KAFKA_TOPIC=libnjkafka-build-topic \
-		--volume /Users/stephenbest/code/libnjkafka:/libnjkafka \
-		--workdir /libnjkafka \
-		ruby:3.4.4-bookworm \
-		make ruby-demo
-
-.PHONY: ruby-demo
-ruby-demo: $(RUBY_C_EXT_BUNDLE)
-	cd $(DEMO_DIR)/ruby && KAFKA_BROKERS=$(KAFKA_BROKERS) KAFKA_TOPIC=$(KAFKA_TOPIC) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) C_EXT_PATH=./build ruby --disable=gems demo.rb
+.PHONY: ruby-test
+ruby-test: $(RUBY_C_EXT_BUNDLE)
+	cd $(GEM_DIR) && \
+		KAFKA_BROKERS=$(KAFKA_BROKERS) \
+		KAFKA_TOPIC=$(KAFKA_TOPIC) \
+		$(BUNDLE_EXEC) rspec
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): $(DEMO_DIR)/ruby/build/Makefile $(DEMO_DIR)/ruby/libnjkafka_ext.c
-	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) make
+$(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb $(GEM_DIR)/ext/libnjkafka_ext.c
+	cd $(GEM_DIR)/ext && \
+		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
+		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
+		$(BUNDLE_EXEC) ruby extconf.rb \
+		&& make
 
-.PHONY: ruby-make-file
-ruby-make-file: $(DEMO_DIR)/ruby/build/Makefile
-
-$(DEMO_DIR)/ruby/build/Makefile: $(DEMO_DIR)/ruby/extconf.rb
-	mkdir -p $(DEMO_DIR)/ruby/build
-	cp $(DEMO_DIR)/ruby/extconf.rb $(DEMO_DIR)/ruby/build
-	cp $(DEMO_DIR)/ruby/libnjkafka_ext.c $(DEMO_DIR)/ruby/build
-	cd $(DEMO_DIR)/ruby/build && LIB_DIR=$(PROJECT_HOME)/$(BUILD_DIR) LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) ruby extconf.rb
+.PHONY: ruby-clean
+ruby-clean:
+	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.bundle*
+	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.o
+	rm -f $(GEM_DIR)/ext/Makefile
+	rm -f $(GEM_DIR)/ext/mkmf.log
 
 ## C Demo #####################################################################
 
