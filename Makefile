@@ -207,8 +207,6 @@ DEMO_DIR=$(PROJECT_HOME)/demos
 
 GEM_DIR=$(PROJECT_HOME)/rubygem
 
-BUNDLE_EXEC ?= bundle exec
-
 RUBY_C_EXT_BUNDLE = $(GEM_DIR)/ext/libnjkafka_ext.bundle
 RUBY_DOCKER_SCRIPT = ./build/scripts/docker-ruby-run
 RUBY_DOCKER_TAG = libnjkafka-ruby
@@ -229,23 +227,26 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 
 .PHONY: ruby-test
 ruby-test: $(RUBY_C_EXT_BUNDLE)
+	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR) && \
 		KAFKA_BROKERS=$(KAFKA_BROKERS) \
 		KAFKA_TOPIC=$(KAFKA_TOPIC) \
-		$(BUNDLE_EXEC) rspec
+		bundle exec rspec
 
 .PHONY: ruby-c-ext
 ruby-c-ext: $(RUBY_C_EXT_BUNDLE)
 
-$(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb $(GEM_DIR)/ext/libnjkafka_ext.c
+$(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb
+	cd $(GEM_DIR) && bundle install
 	cd $(GEM_DIR)/ext && \
 		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
 		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
-		$(BUNDLE_EXEC) ruby extconf.rb \
+		bundle exec ruby extconf.rb \
 		&& make
 
 .PHONY: ruby-clean
 ruby-clean:
+	rm -rf $(GEM_DEPENDENDENCIES)
 	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.bundle*
 	rm -rf $(GEM_DIR)/ext/libnjkafka_ext.o
 	rm -f $(GEM_DIR)/ext/Makefile

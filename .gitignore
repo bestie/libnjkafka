@@ -5,6 +5,7 @@ cbin/*
 compile_flags.txt
 
 *.log
+.env.local
 
 rubygem/ext/Makefile
 rubygem/ext/*.o
@@ -12,3 +13,4 @@ rubygem/ext/*.so
 rubygem/ext/*.bundle
 rubygem/ext/*.dSYM
 rubygem/pkg
+rubygem/.rspec_status
