@@ -254,7 +254,8 @@ $(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb $(GEM_DIR)/ext/*.c
 		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
 		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 		bundle exec ruby extconf.rb \
-		&& make
+		&& make \
+		&& echo "🤓 C extension compiled successfully"
 
 .PHONY: ruby-clean
 ruby-clean:
