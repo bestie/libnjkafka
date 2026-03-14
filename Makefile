@@ -223,7 +223,7 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 	@echo '  --platform=$(DOCKER_TARGET_PLATFORM) \\' >> $@
 	@echo '  --rm \\' >> $@
 	@echo '  --network=host \\' >> $@
-	@echo '  --env KAFKA_BROKERS=host.docker.internal:9092 \\' >> $@
+	@echo '  --env KAFKA_BROKERS=$(KAFKA_BROKERS) \\' >> $@
 	@echo '  --env KAFKA_TOPIC=$(KAFKA_TOPIC) \\' >> $@
 	@echo '  --workdir=/libnjkafka \\' >> $@
 	@echo '  --volume $(PROJECT_HOME):/libnjkafka \\' >> $@
@@ -233,7 +233,8 @@ $(RUBY_DOCKER_SCRIPT): Makefile
 .PHONY: ruby-gem
 ruby-gem: ruby-test
 	cd $(GEM_DIR) && bundle install
-	cd $(GEM_DIR) && bundle exec rake build
+	cd $(GEM_DIR) && bundle exec rake build \
+		&& echo "💎 gem build successful"
 
 .PHONY: ruby-test
 ruby-test: $(RUBY_C_EXT_BUNDLE)
@@ -253,8 +254,7 @@ $(RUBY_C_EXT_BUNDLE): $(GEM_DIR)/ext/extconf.rb $(GEM_DIR)/ext/*.c
 		DIST_DIR=$(PROJECT_HOME)/$(BUILD_DIR)/dist\
 		LD_LIBRARY_PATH=$(PROJECT_HOME)/$(BUILD_DIR) \
 		bundle exec ruby extconf.rb \
-		&& make \
-		&& echo "💎 gem build successful"
+		&& make
 
 .PHONY: ruby-clean
 ruby-clean:
