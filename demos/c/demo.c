@@ -335,40 +335,8 @@ int main() {
     printf(GREEN "libnjkafka_consumer_poll Processed %d messages as expected.\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT);
     printf("\n\n");
 
-    printf("Now try processing with a callback!!!!!!!!!!!!!!!!!!!!!!!!!! 🤙 🤙 🤙\n\n");
-    char* group_id2 = (char*)malloc(30);
-    snprintf(group_id2, 30, "test-group-%d", rand());
-
-    config->group_id = strdup(group_id2);
-    libnjkafka_Consumer* consumer2 = libnjkafka_create_consumer(config);
-    libnjkafka_consumer_subscribe(consumer2, strdup(kafka_topic), rebalance_listener);
-
-    char* opaque_string = "Opaque for callback 🥸";
-    void* opaque = (void*)opaque_string;
-
-    libnjkafka_ConsumerRecordProcessor* processor = (libnjkafka_ConsumerRecordProcessor*)print_message;
-    libnjkafka_BatchResults results = libnjkafka_consumer_poll_each_message(consumer2, 5000, processor, opaque);
-
-    if(results.success_count != DEFAULT_EXPECTED_MESSAGE_COUNT) {
-      printf(RED "libnjkafka_consumer_poll_each_message Error: Expected %d, got %d\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT, results.success_count);
-      exit(1);
-    }
-
-    if (processor_callback_opaque == opaque) {
-        printf(GREEN "libnjkafka_consumer_poll_each_message Success: Opaque matches expected value\n" RESET);
-    } else {
-        printf(RED "libnjkafka_consumer_poll_each_message Error: Opaque does not match expected value\n" RESET);
-        exit(1);
-    }
-
     printf("\n\n");
-    printf(GREEN "libnjkafka_consumer_poll_each_message Processed %d messages as expected.\n" RESET, DEFAULT_EXPECTED_MESSAGE_COUNT);
-    printf("\n\n");
-
-    libnjkafka_consumer_close(consumer2);
-
-    printf("\n\n");
-    printf("Test the rebalance listener 👂👂\n");
+    printf("Check the rebalance listener 👂👂\n");
     printf("\n\n");
 
     char* group_id_pt = (char*)malloc(30);

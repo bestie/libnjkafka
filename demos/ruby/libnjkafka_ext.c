@@ -304,12 +304,6 @@ static VALUE consumer_poll(VALUE self, VALUE timeout) {
     return cr_list;
 }
 
-static int poll_each_message_callback(libnjkafka_ConsumerRecord record, VALUE block) {
-    VALUE cr = consumer_record_to_rb(record);
-    rb_proc_call(block, rb_ary_new_from_args(1, cr));
-    return 0;
-}
-
 static VALUE consumer_alloc(VALUE klass) {
     Consumer* consumer = ALLOC(Consumer);
     return TypedData_Wrap_Struct(consumer_class, &consumer_data_type, consumer);
@@ -330,29 +324,6 @@ static VALUE consumer_commit_all_sync(VALUE self, VALUE timeout_ms) {
     int result = libnjkafka_consumer_commit_all_sync(consumer->consumer_ref, c_timeout_ms);
     if (result != 0) {
         rb_raise(rb_eRuntimeError, "Failed to commit all offsets");
-    }
-
-    return Qnil;
-}
-
-static VALUE consumer_poll_each_message(VALUE self, VALUE timeout_ms) {
-    Consumer* consumer;
-    TypedData_Get_Struct(self, Consumer, &consumer_data_type, consumer);
-
-    rb_need_block();
-    VALUE block = rb_block_proc();
-
-    Check_Type(timeout_ms, T_FIXNUM);
-    int c_timeout = NUM2INT(timeout_ms);
-
-    libnjkafka_ConsumerRecordProcessor* block_runner_callback = (libnjkafka_ConsumerRecordProcessor*)poll_each_message_callback;
-    void* opaque = (void*)block;
-
-    libnjkafka_BatchResults results = libnjkafka_consumer_poll_each_message(consumer->consumer_ref, c_timeout, block_runner_callback, opaque);
-    if (results.success_count == results.total_records) {
-        fprintf(stderr, "Processed all messages successfully\n");
-    } else {
-        fprintf(stderr, "Processed %d of %d messages successfully\n", results.success_count, results.total_records);
     }
 
     return Qnil;
@@ -424,7 +395,6 @@ void Init_libnjkafka_ext() {
     rb_define_alloc_func(consumer_class, consumer_alloc);
     rb_define_method(consumer_class, "initialize", consumer_initialize, 0);
     rb_define_method(consumer_class, "poll", consumer_poll, 1);
-    rb_define_method(consumer_class, "poll_each_message", consumer_poll_each_message, 1);
     rb_define_method(consumer_class, "commit_all_sync", consumer_commit_all_sync, 1);
     rb_define_method(consumer_class, "close", consumer_close, 0);
     rb_define_private_method(consumer_class, "cext_subscribe", consumer_subscribe, 2);

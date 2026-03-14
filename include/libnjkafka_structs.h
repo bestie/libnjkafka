@@ -92,11 +92,6 @@ typedef struct {
     int session_timeout_ms;
 } libnjkafka_ConsumerConfig;
 
-typedef struct {
-    int total_records;
-    int success_count;
-} libnjkafka_BatchResults;
-
 // This is not used in C code but is necessary to have a generic type for Java
 typedef struct {
     int count;
