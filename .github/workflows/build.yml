@@ -137,17 +137,7 @@ jobs:
           name: build-dir
           path: ./build
 
-      - name: Show artifacts
-        run: ls -l build
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            --tag ${{ env.DOCKER_TAG }} \
-            --file Dockerfile.ruby \
-            .
-
-      - name: Compile the Ruby C extension and run the Ruby tests
+      - name: Compile the Ruby C extension
         run: |
           docker run --network=host \
             --volume ${{ github.workspace }}:/libnjkafka \
@@ -155,6 +145,15 @@ jobs:
             --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
             ${{ env.DOCKER_TAG }} \
             make ruby-c-ext
+
+      - name: Run the Ruby tests
+        run: |
+          docker run --network=host \
+            --volume ${{ github.workspace }}:/libnjkafka \
+            --env KAFKA_BROKERS=${{ env.KAFKA_BROKERS }} \
+            --env KAFKA_TOPIC=${{ env.KAFKA_TOPIC }} \
+            ${{ env.DOCKER_TAG }} \
+            make ruby-test
 
   linux-binaries:
     runs-on: ubuntu-latest
