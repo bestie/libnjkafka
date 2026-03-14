@@ -1,12 +1,8 @@
 require 'securerandom'
-require 'benchmark'
+
+require_relative "lib_nj_kafka"
 
 Thread.current.name = "main"
-benchmarks = {}
-
-benchmarks["Load C extension"] = Benchmark.realtime do
-  require_relative "lib_nj_kafka"
-end
 
 consumer = nil
 exit_code = 0
@@ -37,43 +33,37 @@ rebalance_listener = RebalanceListener.new
 
 puts "Creating consumer with group.id=#{group_id}"
 
-benchmarks["Create consumer"] = Benchmark.realtime do
-  config = {
-    auto_offset_reset: "earliest",
-    bootstrap_servers: ENV.fetch("KAFKA_BROKERS"),
-    check_crcs: true,
-    client_id: "libnjkafka_ruby_demo",
-    enable_auto_commit: false,
-    fetch_max_bytes: 1024 * 1024,
-    fetch_max_wait_ms: 100,
-    fetch_min_bytes: 1024 * 1024,
-    group_id: group_id,
-    heartbeat_interval_ms: 1000,
-    isolation_level: "read_committed",
-    max_partition_fetch_bytes: 1024 * 1024,
-    max_poll_interval_ms: 10000,
-    max_poll_records: 120,
-    offset_reset: 'earliest',
-    request_timeout_ms: 5000,
-    session_timeout_ms: 6000,
-  }
+config = {
+  auto_offset_reset: "earliest",
+  bootstrap_servers: ENV.fetch("KAFKA_BROKERS"),
+  check_crcs: true,
+  client_id: "libnjkafka_ruby_demo",
+  enable_auto_commit: false,
+  fetch_max_bytes: 1024 * 1024,
+  fetch_max_wait_ms: 100,
+  fetch_min_bytes: 1024 * 1024,
+  group_id: group_id,
+  heartbeat_interval_ms: 1000,
+  isolation_level: "read_committed",
+  max_partition_fetch_bytes: 1024 * 1024,
+  max_poll_interval_ms: 10000,
+  max_poll_records: 120,
+  offset_reset: 'earliest',
+  request_timeout_ms: 5000,
+  session_timeout_ms: 6000,
+}
 
-  consumer = LibNJKafka.create_consumer(config)
-end
+consumer = LibNJKafka.create_consumer(config)
 
 puts "Subscribing to #{kafka_topic}"
-benchmarks["Subscribe to topic"] = Benchmark.realtime do
-  consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
-end
+consumer.subscribe(kafka_topic, rebalance_listener: rebalance_listener)
 
 records = []
 
 puts "Polling"
 poll_timeout_ms = 5_000
 
-benchmarks["Cosumer poll"] = Benchmark.realtime do
-  records = consumer.poll(poll_timeout_ms)
-end
+records = consumer.poll(poll_timeout_ms)
 
 record_count = records.count
 
@@ -85,14 +75,10 @@ end
 puts "Done processing"
 
 puts "Committing offsets synchronously"
-benchmarks["Commit offsets"] = Benchmark.realtime do
-  consumer.commit_all_sync(1000)
-end
+consumer.commit_all_sync(1000)
 
 puts "Closing consumer"
-benchmarks["Close consumer"] = Benchmark.realtime do
-  consumer.close
-end
+consumer.close
 
 GREEN = "\e[32m"
 RED = "\e[31m"
@@ -157,11 +143,6 @@ else
   puts "  Methods calls received: #{rebalance_listener.method_calls.inspect}"
 end
 puts ANSI_RESET
-
-benchmarks.each do |name, time|
-  ms = (time.real * 1000).round(4)
-  puts "#{name}: \t#{ms}ms"
-end
 
 puts "Ruby version: #{RUBY_VERSION}"
 
