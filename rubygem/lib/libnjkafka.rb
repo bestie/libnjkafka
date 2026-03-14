@@ -11,6 +11,7 @@ module LibNJKafka
     thread = Thread.current
 
     tracer = TracePoint.new(:thread_end) {
+      raise "🧵🤯Not the thread I expected! current=#{Thread.current.inspect} expected=#{thread.inspect}"
       teardown_current_thread
     }
 
