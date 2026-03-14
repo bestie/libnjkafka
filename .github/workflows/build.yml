@@ -126,10 +126,14 @@ jobs:
       steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v8
+      - name: Restore the build directory
+        uses: actions/cache/restore@v5
+        id: native-binaries-cache
         with:
-          name: build-dir
-          path: ./build
+          key: build-dir-${{ github.ref_name }}
+          restore-keys: |
+            build-dir-main
+          path: build/
 
       - name: Compile the Ruby C extension and run the tests
         run: |
