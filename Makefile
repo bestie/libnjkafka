@@ -32,9 +32,6 @@ JAVA_HOME = $(GRAALVM_HOME)
 JAVAC = $(GRAALVM_HOME)/bin/javac
 JAVAC_VERSION = 22
 NATIVE_IMAGE = $(GRAALVM_HOME)/bin/native-image
-NATIVE_IMAGE_FLAGS = $(PLATFORM_NATIVE_IMAGE_FLAGS) -cp $(CLASSPATH) \
- --native-compiler-options="-I$(PROJECT_HOME)/$(BUILD_DIR)" \
- -H:ConfigurationFileDirectories=$(GRAALVM_AGENT_CONFIG_DIR)
 
 # C compilation
 C_SRC = csrc
@@ -114,7 +111,10 @@ $(GRAALVM_NATIVE_OBJECT): $(JAVA_ENTRYPOINTS) $(STRUCT_DEFINITIONS) $(GRAALVM_DE
 	cp $(CALLBACK_DEFINITIONS) $(BUILD_DIR)
 
 	$(NATIVE_IMAGE) -o libnjkafka_core --shared --static-nolibc \
-		-H:Name=$(BUILD_DIR)/libnjkafka_core $(NATIVE_IMAGE_FLAGS) \
+		-cp $(CLASSPATH) $(PLATFORM_NATIVE_IMAGE_FLAGS) \
+		--native-compiler-options="-I$(PROJECT_HOME)/$(BUILD_DIR)" \
+		-H:Name=$(BUILD_DIR)/libnjkafka_core \
+		-H:ConfigurationFileDirectories=$(GRAALVM_AGENT_CONFIG_DIR) \
 		-H:NativeLinkerOption=-Wl,$(NATIVE_IMAGE_LINKER_FLAGS)
 
 $(GRAALVM_DEPENDENCY_METADATA): $(JAVA_ENTRYPOINTS)
