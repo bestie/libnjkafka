@@ -22,12 +22,12 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Build the compiler Docker image
-      uses: ./.github/actions/docker-gha-cache/build
+      uses: bestie/docker-gha-cache/build@v1
       with:
         tag: ${{ env.DOCKER_TAG }}
         platform: ${{ matrix.docker_platform }}
-        build-args: |
-          GRAALVM_ARCH=${{ matrix.graalvm_arch }}
+        buildx-args: |
+          --build-arg GRAALVM_ARCH=${{ matrix.graalvm_arch }}
 
   compile:
     runs-on: ubuntu-latest
@@ -79,7 +79,7 @@ jobs:
         path: build/
 
     - name: Restore compiler Docker image from cache
-      uses: ./.github/actions/docker-gha-cache/restore
+      uses: bestie/docker-gha-cache/restore@v1
       with:
         tag: ${{ env.DOCKER_TAG }}
 
@@ -193,7 +193,7 @@ jobs:
         platforms: ${{ inputs.platform }}
 
     - name: Restore compiler Docker image from cache
-      uses: ./.github/actions/docker-gha-cache/restore
+      uses: bestie/docker-gha-cache/restore@v1
       with:
         tag: ${{ env.DOCKER_TAG }}
         platform: ${{ env.DOCKER_PLATFORM }}
